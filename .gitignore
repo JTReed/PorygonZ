@@ -1,0 +1,11 @@
+bin
+*.jar
+*.egg-info
+*.pyo
+ip_config
+rtable.*
+pox
+
+# IntelliJ stuff
+.idea/
+*.iml
