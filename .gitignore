@@ -5,6 +5,7 @@ bin
 ip_config
 rtable.*
 pox
+.classpath
 
 # IntelliJ stuff
 .idea/
