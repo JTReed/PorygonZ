@@ -62,6 +62,45 @@ class TriangleTopo(Topo):
         self.addLink(s1, s2)
         self.addLink(s2, s3)
         self.addLink(s3, s1)
+
+class SomeLoopsTopo(Topo):
+    def __init__(self, **opts):
+        Topo.__init__(self, **opts)
+        h1 = self.addHost('h1')
+        h2 = self.addHost('h2')
+        h3 = self.addHost('h3')
+        h4 = self.addHost('h4')
+        s1 = self.addSwitch('s1')
+        s2 = self.addSwitch('s2')
+        s3 = self.addSwitch('s3')
+        s4 = self.addSwitch('s4')
+        s5 = self.addSwitch('s5')
+        s6 = self.addSwitch('s6')
+        self.addLink(h1, s1)
+        self.addLink(h2, s5)
+        self.addLink(h3, s4)
+        self.addLink(h4, s6)
+        self.addLink(s1, s2)
+        self.addLink(s2, s3)
+        self.addLink(s3, s4)
+        self.addLink(s3, s6)
+        self.addLink(s2, s5)
+        self.addLink(s5, s4)
+        self.addLink(s4, s6)
+        self.addLink(s6, s1)
+
+class MeshTopo(Topo):
+    def __init__(self, n=4, **opts):
+        Topo.__init__(self, **opts)
+        switches = []
+        for i in range(1,n+1):
+            h = self.addHost('h%d' % i)
+            s = self.addSwitch('s%d' % i)
+            self.addLink(h, s)
+            switches.append(s)
+        for i in range(0,n-1):
+            for j in range(i+1,n):
+                self.addLink(switches[i], switches[j])
      
 def starthttp(host):
     "Start simple Python web server on hosts"
@@ -82,7 +121,7 @@ if __name__ == '__main__':
 
     # Create network
     if (len(sys.argv) != 2):
-        print 'Specify topology single, tree, linear, assign1, or triangle'
+        print 'Specify topology single, tree, linear, assign1, triangle, mesh, or someloops'
         sys.exit(1)
     topoName = sys.argv[1]
     topoParts = topoName.split(',')
@@ -102,6 +141,12 @@ if __name__ == '__main__':
         topo = AssignOneTopo()
     elif (topoParts[0] == "triangle"):
         topo = TriangleTopo()
+    elif (topoParts[0] == "mesh"):
+        if (len(topoParts) != 2 or not topoParts[1].isdigit()):
+            sys.exit(1)
+        topo = MeshTopo(n=int(topoParts[1]))
+    elif (topoParts[0] == "someloops"):
+        topo = SomeLoopsTopo()
     else:
         print 'Unknown topology'
         sys.exit(1) 
