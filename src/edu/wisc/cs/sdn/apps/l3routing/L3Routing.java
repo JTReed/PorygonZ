@@ -255,6 +255,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		/* TODO: Update routing: change routing rules for all hosts          */
 		
 		/*********************************************************************/
+		printData(); 
 	}
 
 	/**
