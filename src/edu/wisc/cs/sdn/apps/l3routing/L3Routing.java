@@ -92,7 +92,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		/* TODO: Perform other tasks, if necessary                           */
 		
 		/*********************************************************************/
-		printData();
 	}
 	
 	/**
@@ -138,7 +137,9 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			/* TODO: Update routing: add rules to route to new host          */
 			
 			/*****************************************************************/
+			
 		}
+		printData();
 	}
 
 	/**
@@ -206,6 +207,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		/* TODO: Update routing: change routing rules for all hosts          */
 
 		/*********************************************************************/
+		printData();
 	}
 
 	/**
