@@ -6,6 +6,7 @@ ip_config
 rtable.*
 pox
 .classpath
+*.dat
 
 # IntelliJ stuff
 .idea/
