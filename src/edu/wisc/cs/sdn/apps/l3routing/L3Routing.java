@@ -33,6 +33,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		ILinkDiscoveryListener, IDeviceListener, IL3Routing
 {
 	public static final String MODULE_NAME = L3Routing.class.getSimpleName();
+	public static final int INFINITY = 9999;
 	
 	// Interface to the logging system
     private static Logger log = LoggerFactory.getLogger(MODULE_NAME);
@@ -385,7 +386,15 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
         return modules;
 	}
 	
-	private void bellmanFord( Host sourceHost ) {
+	private void addLinks( BFNode node ) {
+		
+	}
+	
+	/**
+	 * Finds the shortest paths from host to host and installs rules in the flow tables
+	 * 
+	 */
+	private void bellmanFord( ) {
 	
 		//TODO: Remove
 		System.out.println( "Starting bellmanFord" );
@@ -399,17 +408,127 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		 *  - all are distance to host from source host
 		 */
 		
-		Collection<Host> hosts = getHosts();
-		Map<Long, IOFSwitch> switches = getSwitches();
-		Collection<Link> links = getLinks();
-		int hostCount = hosts.size();
+		// Initialize list of BFNodes for each switch - with dist infinity
+		// Set all the linked nodes
+		List<BFNode> switchTopo = new ArrayList<BFNode>();
 		
-		//Implement Bellman-Ford with hostCount-1 iterations
-		/*for( int iteration = 0; iteration < hostCount; iteration++ ) {
-			for( Host currentHost : hosts ) {
-				
+		// add switches to switchTopo
+		for( IOFSwitch iofSwitch : getSwitches().values() ) {
+			BFNode node = new BFNode( iofSwitch, INFINITY );
+			switchTopo.add( node );
+		}
+		setupBFLinks( switchTopo );		
+		
+		// loop through each switch and treat it as source
+		for( BFNode srcNode : switchTopo ) {
+			IOFSwitch srcSwitch = srcNode.getSwitch();
+			
+			// we need to reset all weights in the graph so we can run Bellman-Ford
+			for( BFNode node : switchTopo ) {
+				if( node.equals( srcNode ) ) {
+					node.setDistance( 0 );
+				}
+				else {
+					node.setDistance( INFINITY );
+				}
 			}
-		}*/
+			
+			// Run Bellman-Ford for V - 1 iterations where V is the number of switches
+			// based on <http://algs4.cs.princeton.edu/44sp/BellmanFordSP.java.html> I see that order doesn't matter
+			IOFSwitch currentSwitch = null;
+			for( int i = 0; i < switchTopo.size() - 1; i++ ) {
+				for( BFNode node : switchTopo ) {
+					currentSwitch = node.getSwitch();
+					
+					//check each port on that node
+					for( int port : currentSwitch.getEnabledPortNumbers() ) {
+						
+						// change weight and best port if the path is better
+						if( node.getDistance() > node.getLinkedNodes().get( port ).getDistance() + 1 ) {
+							node.setDistance( node.getLinkedNodes().get( port ).getDistance() + 1 );
+							node.setBestPort( port );
+						}
+					}
+					
+				}
+			}
+			
+			// now install instructions!
+		}		
+	}
+	
+	/**
+	 * Finds shortest path from a source host to every other host and installs rules in flow tables
+	 * @param srcHost host to find shortest distances from
+	 */
+	private void bellmanFord( Host srcHost ) {
+		List<BFNode> switchTopo = new ArrayList<BFNode>();
+		IOFSwitch srcSwitch = srcHost.getSwitch();
+		
+		// add switches to switchTopo
+		for( IOFSwitch iofSwitch : getSwitches().values() ) {
+			BFNode node = null;
+			if( iofSwitch.equals( srcSwitch ) ) {
+				node = new BFNode( iofSwitch, 0 );
+			}
+			else {
+				node = new BFNode( iofSwitch, INFINITY );
+			}			
+			switchTopo.add( node );
+		}
+		setupBFLinks( switchTopo );		
+		
+		// Run Bellman-Ford for V - 1 iterations where V is the number of switches
+		// based on <http://algs4.cs.princeton.edu/44sp/BellmanFordSP.java.html> I see that order doesn't matter
+		IOFSwitch currentSwitch = null;
+		for( int i = 0; i < switchTopo.size() - 1; i++ ) {
+			for( BFNode node : switchTopo ) {
+				currentSwitch = node.getSwitch();
+				
+				//check each port on that node
+				for( int port : currentSwitch.getEnabledPortNumbers() ) {
+					
+					// change weight and best port if the path is better
+					if( node.getDistance() > node.getLinkedNodes().get( port ).getDistance() + 1 ) {
+						node.setDistance( node.getLinkedNodes().get( port ).getDistance() + 1 );
+						node.setBestPort( port );
+					}
+				}
+			}
+		}
+		
+		// Install rules!!
+	}
+	
+	private void setupBFLinks( List<BFNode> switchTopo ) {
+		IOFSwitch currSwitch = null;
+		IOFSwitch targetSwitch = null;
+		
+		// loop through each BFNode
+		for( BFNode node : switchTopo ) {
+			// get the switch
+			currSwitch = node.getSwitch();
+			
+			// loop through each port on the switch
+			for( int port : currSwitch.getEnabledPortNumbers() ) {
+				//find any links with that port as the source
+				for( Link link : getLinks() ) {
+					// check if link starts at this switch
+					if( link.getSrc() == currSwitch.getId() && link.getSrcPort() == port ) {
+						// loop through BFNodes again to see where to go
+						for( BFNode targetNode : switchTopo ) {
+							targetSwitch = targetNode.getSwitch();
+							
+							// check if we have the correct BFNode here
+							if( targetSwitch.getId() == link.getDst() && targetSwitch.getEnabledPortNumbers().contains( link.getDstPort() ) ) {
+								node.addLinkedNode( port, targetNode );
+								break; // move on to next link
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 	
 	private void printData() {

@@ -7,14 +7,22 @@ import net.floodlightcontroller.core.IOFSwitch;
 public class BFNode {
 	private IOFSwitch iofSwitch;
 	private int distance;
-	private BFNode previousNode;
+	private int bestPort;
 	private HashMap<Integer, BFNode> linkedNodes;
 	
 	public BFNode() 
 	{
 		this.iofSwitch = null;
 		this.distance = 0;
-		this.previousNode = null;
+		this.bestPort = -1;
+		this.linkedNodes = new HashMap<Integer, BFNode>();
+	}
+	
+	public BFNode( IOFSwitch sw, int dist )
+	{
+		this.iofSwitch = sw;
+		this.distance = dist;
+		this.bestPort = -1;
 		this.linkedNodes = new HashMap<Integer, BFNode>();
 	}
 	
@@ -28,9 +36,9 @@ public class BFNode {
 		this.distance = dist;
 	}
 	
-	public void setPreviousNode( BFNode node )
+	public void setBestPort( int port )
 	{
-		this.previousNode = node;
+		this.bestPort = port;;
 	}
 	
 	public void setLinkedNodes( HashMap<Integer, BFNode> linkedNodes )
@@ -48,14 +56,23 @@ public class BFNode {
 		return this.distance;
 	}
 	
-	public BFNode getPreviousNode()
+	public int getBestPort()
 	{
-		return this.previousNode;
+		return this.bestPort;
 	}
 	
 	public HashMap<Integer, BFNode> getLinkedNodes() 
 	{
 		return this.linkedNodes;
+	}
+	
+	public void addLinkedNode( int port, BFNode node ) 
+	{
+		this.linkedNodes.put( port, node );
+	}
+	
+	public void removeLinkedNode( int port ) {
+		this.linkedNodes.remove( port );
 	}
 	
 }
