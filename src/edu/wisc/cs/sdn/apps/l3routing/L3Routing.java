@@ -436,7 +436,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		System.out.println( "Hosts: " + getHosts().toString() );
 		System.out.println( "Switches: " + getSwitches().toString() );
 		for (Link currLink: getLinks()){
-			system.out.println( "Links: " + currLink.toString() );
+			System.out.println( "Links: " + currLink.toString() );
 		}
 		//System.out.println( "Links: " + getLinks().toString() );
 	}
