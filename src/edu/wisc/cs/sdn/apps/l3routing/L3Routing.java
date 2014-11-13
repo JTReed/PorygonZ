@@ -133,10 +133,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	@Override
 	public void deviceAdded(IDevice device) 
 	{
-		//TODO: Remove
-		System.out.println( "Starting deviceAdded" );
-
-		
 		Host host = new Host(device, this.floodlightProv);
 		// We only care about a new host if we know its IP
 		if (host.getIPv4Address() != null)
@@ -150,7 +146,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			/*****************************************************************/
 			
 		}
-		printData();
 	}
 
 	/**
@@ -211,10 +206,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	@Override		
 	public void switchAdded(long switchId) 
 	{
-		//TODO: Remove
-		System.out.println( "Starting switchAdded" );
-
-		
 		IOFSwitch sw = this.floodlightProv.getSwitch(switchId);
 		log.info(String.format("Switch s%d added", switchId));
 		
@@ -222,7 +213,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		/* TODO: Update routing: change routing rules for all hosts          */
 
 		/*********************************************************************/
-		printData();
 	}
 
 	/**
@@ -232,10 +222,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	@Override
 	public void switchRemoved(long switchId) 
 	{
-		//TODO: Remove
-		System.out.println( "Starting switchRemoved" );
-
-		
 		IOFSwitch sw = this.floodlightProv.getSwitch(switchId);
 		log.info(String.format("Switch s%d removed", switchId));
 		
@@ -252,11 +238,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	@Override
 	public void linkDiscoveryUpdate(List<LDUpdate> updateList) 
 	{
-		
-		//TODO: Remove
-		System.out.println( "Starting linkDiscoveryUpdate with List<LDUpdate>" );
-
-		
 		for (LDUpdate update : updateList)
 		{
 			// If we only know the switch & port for one end of the link, then
@@ -279,7 +260,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		/* TODO: Update routing: change routing rules for all hosts          */
 		
 		/*********************************************************************/
-		printData(); 
 	}
 
 	/**
@@ -435,9 +415,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	private void printData() {
 		System.out.println( "Hosts: " + getHosts().toString() );
 		System.out.println( "Switches: " + getSwitches().toString() );
-		for (Link currLink: getLinks()){
-			System.out.println( "Links: " + currLink.toString() );
-		}
-		//System.out.println( "Links: " + getLinks().toString() );
+		System.out.println( "Links: " + getLinks().toString() );
 	}
 }
