@@ -407,8 +407,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	
 		//TODO: Remove
 		System.out.println( "Starting bellmanFord" );
+		printData();
 
-		
 		/*
 		 * Use Bellman-Ford algorithm to build tables!
 		 * Passed in sourceHost so we know where to start
@@ -541,8 +541,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	}
 	
 	private void printData() {
-		System.out.println( "Hosts: " + getHosts().toString() );
-		System.out.println( "Switches: " + getSwitches().toString() );
-		System.out.println( "Links: " + getLinks().toString() );
+		System.out.println( "Hosts: " + getHosts().size() );
+		System.out.println( "Switches: " + getSwitches().size() );
+		System.out.println( "Links: " + getLinks().size() );
 	}
 }
