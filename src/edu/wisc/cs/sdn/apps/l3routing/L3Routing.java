@@ -420,12 +420,12 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		setupBFLinks( switchTopo );		
 		
 		// loop through each switch and treat it as source
-		for( BFNode srcNode : switchTopo ) {
-			IOFSwitch srcSwitch = srcNode.getSwitch();
+		for( BFNode sourceNode : switchTopo ) {
+			IOFSwitch sourceSwitch = sourceNode.getSwitch();
 			
-			// we need to reset all weights in the graph so we can run Bellman-Ford
+			// we need to reset all weights in the graph for each new source so we can run Bellman-Ford
 			for( BFNode node : switchTopo ) {
-				if( node.equals( srcNode ) ) {
+				if( node.equals( sourceNode ) ) {
 					node.setDistance( 0 );
 				}
 				else {
@@ -434,7 +434,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			}
 			
 			// Run Bellman-Ford for V - 1 iterations where V is the number of switches
-			// based on <http://algs4.cs.princeton.edu/44sp/BellmanFordSP.java.html> I see that order doesn't matter
+			// based on <http://algs4.cs.princeton.edu/44sp/BellmanFordSP.java.html> we see that order doesn't matter
 			IOFSwitch currentSwitch = null;
 			for( int i = 0; i < switchTopo.size() - 1; i++ ) {
 				for( BFNode node : switchTopo ) {
@@ -461,14 +461,14 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	 * Finds shortest path from a source host to every other host and installs rules in flow tables
 	 * @param srcHost host to find shortest distances from
 	 */
-	private void bellmanFord( Host srcHost ) {
+	private void bellmanFord( Host sourceHost ) {
 		List<BFNode> switchTopo = new ArrayList<BFNode>();
-		IOFSwitch srcSwitch = srcHost.getSwitch();
+		IOFSwitch sourceSwitch = sourceHost.getSwitch();
 		
 		// add switches to switchTopo
 		for( IOFSwitch iofSwitch : getSwitches().values() ) {
 			BFNode node = null;
-			if( iofSwitch.equals( srcSwitch ) ) {
+			if( iofSwitch.equals( sourceSwitch ) ) {
 				node = new BFNode( iofSwitch, 0 );
 			}
 			else {
