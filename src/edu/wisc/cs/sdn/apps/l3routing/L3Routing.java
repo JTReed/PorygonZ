@@ -52,6 +52,9 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
     
     // Map of hosts to devices
     private Map<IDevice,Host> knownHosts;
+    
+    //TODO: Remove these test variables and all mentions of them
+    int numberOfSwitches;
 
 	/**
      * Loads dependencies and initializes data structures.
@@ -77,6 +80,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
         /*********************************************************************/
         /* TODO: Initialize other class variables, if necessary              */
         
+        this.numberOfSwitches = 3;
         /*********************************************************************/
 	}
 
@@ -213,6 +217,10 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		/*********************************************************************/
 		/* TODO: Update routing: change routing rules for all hosts          */
 
+		this.numberOfSwitches--;
+		if( this.numberOfSwitches == 0 ) {
+			bellmanFord();
+		}
 		/*********************************************************************/
 	}
 
@@ -440,7 +448,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 				for( BFNode node : switchTopo ) {
 					currentSwitch = node.getSwitch();
 					
-					//check each port on that node
+					// for each port on that node
 					for( int port : currentSwitch.getEnabledPortNumbers() ) {
 						
 						// change weight and best port if the path is better
