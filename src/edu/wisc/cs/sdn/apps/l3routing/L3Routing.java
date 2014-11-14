@@ -52,9 +52,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
     
     // Map of hosts to devices
     private Map<IDevice,Host> knownHosts;
-    
-    //TODO: Remove these test variables and all mentions of them
-    int numberOfLinks;
 
 	/**
      * Loads dependencies and initializes data structures.
@@ -80,7 +77,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
         /*********************************************************************/
         /* TODO: Initialize other class variables, if necessary              */
         
-        this.numberOfLinks = 6;
         /*********************************************************************/
 	}
 
@@ -258,11 +254,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 				log.info(String.format("Link s%s:%d -> %s:%d updated", 
 					update.getSrc(), update.getSrcPort(),
 					update.getDst(), update.getDstPort()));
-				
-				this.numberOfLinks--;
-				if( this.numberOfLinks == 0 ) {
-					bellmanFord();
-				}
 			}
 		}
 		
@@ -445,18 +436,23 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			// Run Bellman-Ford for V - 1 iterations where V is the number of switches
 			// based on <http://algs4.cs.princeton.edu/44sp/BellmanFordSP.java.html> we see that order doesn't matter
 			IOFSwitch currentSwitch = null;
+			//System.out.println( "Source: Switch " + sourceSwitch.getId() );
 			for( int i = 0; i < switchTopo.size() - 1; i++ ) {
 				for( BFNode node : switchTopo ) {
 					currentSwitch = node.getSwitch();
-					
+					if(i == switchTopo.size() - 2 ) System.out.print("  Switch " + currentSwitch.getId() + ": " );
 					// for each port on that node
 					for( int port : currentSwitch.getEnabledPortNumbers() ) {
 						
-						// change weight and best port if the path is better
-						if( node.getDistance() > node.getLinkedNodes().get( port ).getDistance() + 1 ) {
+						// change weight and best port if the path is better					
+						if( node.getLinkedNodes().get( port ) != null && node.getDistance() > node.getLinkedNodes().get( port ).getDistance() + 1 ) {
 							node.setDistance( node.getLinkedNodes().get( port ).getDistance() + 1 );
 							node.setBestPort( port );
 						}
+					}
+					if(i == switchTopo.size() - 2 ) {
+						//System.out.print(node.getDistance() + " Hops back to " + sourceSwitch.getId() + " through port " + node.getBestPort() + " " );
+						System.out.println("");
 					}
 					
 				}
