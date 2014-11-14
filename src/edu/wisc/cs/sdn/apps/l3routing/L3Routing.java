@@ -8,10 +8,16 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.openflow.protocol.OFMatch;
+import org.openflow.protocol.action.OFAction;
+import org.openflow.protocol.action.OFActionOutput;
+import org.openflow.protocol.instruction.OFInstruction;
+import org.openflow.protocol.instruction.OFInstructionApplyActions;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.wisc.cs.sdn.apps.util.Host;
+import edu.wisc.cs.sdn.apps.util.SwitchCommands;
 
 import net.floodlightcontroller.core.IFloodlightProviderService;
 import net.floodlightcontroller.core.IOFSwitch;
@@ -459,6 +465,67 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			}
 			
 			// now install instructions!
+			for( Host host : getHosts() ) {
+				if( host.getSwitch().equals( sourceSwitch ) ) {
+					for( BFNode destNode : switchTopo ) {
+						if( destNode != sourceNode ) {
+							OFInstructionApplyActions instructions = new OFInstructionApplyActions();
+							
+							//create new option with outgoing port
+							OFActionOutput action = new OFActionOutput();
+							action.setPort( destNode.getBestPort() );
+							
+							// add action to list of rules
+							List<OFAction> rules = new ArrayList<OFAction>();
+							rules.add( action );
+							instructions.setActions( rules );
+							
+							OFMatch match = new OFMatch();
+							
+							// TODO: IPv4 necessary?
+							match.setDataLayerType( OFMatch.ETH_TYPE_IPV4 );
+							match.setNetworkDestination( host.getIPv4Address() );
+							
+							List<OFInstruction> instructionList = Arrays.asList( (OFInstruction) new OFInstructionApplyActions().setActions( rules ) );
+							if( !SwitchCommands.installRule( destNode.getSwitch(), table, SwitchCommands.DEFAULT_PRIORITY, match, instructionList ) ) {
+								System.out.println( "CRISIS ALERT, RULE NOT INSTALLED CORRECTLY" );
+								return;
+							}
+							else {
+								System.out.println( "Instruction installed on switch " + destNode.getSwitch().getId() );
+							}
+						}
+						else {
+							// add rule to get to this host from the source node
+							OFInstructionApplyActions instructions = new OFInstructionApplyActions();
+							
+							//create new option with outgoing port
+							OFActionOutput action = new OFActionOutput();
+							action.setPort( host.getPort() );
+							
+							// add action to list of rules
+							List<OFAction> rules = new ArrayList<OFAction>();
+							rules.add( action );
+							instructions.setActions( rules );
+							
+							OFMatch match = new OFMatch();
+							
+							// TODO: IPv4 necessary?
+							match.setDataLayerType( OFMatch.ETH_TYPE_IPV4 );
+							match.setNetworkDestination( host.getIPv4Address() );
+							
+							List<OFInstruction> instructionList = Arrays.asList( (OFInstruction) new OFInstructionApplyActions().setActions( rules ) );
+							if( !SwitchCommands.installRule( destNode.getSwitch(), table, SwitchCommands.DEFAULT_PRIORITY, match, instructionList ) ) {
+								System.out.println( "CRISIS ALERT, RULE NOT INSTALLED CORRECTLY" );
+								return;
+							}
+							else {
+								System.out.println( "Instruction installed on switch " + destNode.getSwitch().getId() );
+							}
+						}
+					}
+				}
+			}
 		}		
 	}
 	
