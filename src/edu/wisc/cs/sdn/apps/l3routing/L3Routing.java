@@ -484,21 +484,27 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		setupBFLinks( switchTopo );		
 		
 		// Run Bellman-Ford for V - 1 iterations where V is the number of switches
-		// based on <http://algs4.cs.princeton.edu/44sp/BellmanFordSP.java.html> I see that order doesn't matter
+		// based on <http://algs4.cs.princeton.edu/44sp/BellmanFordSP.java.html> we see that order doesn't matter
 		IOFSwitch currentSwitch = null;
+		//System.out.println( "Source: Switch " + sourceSwitch.getId() );
 		for( int i = 0; i < switchTopo.size() - 1; i++ ) {
 			for( BFNode node : switchTopo ) {
 				currentSwitch = node.getSwitch();
-				
-				//check each port on that node
+				if(i == switchTopo.size() - 2 ) System.out.print("  Switch " + currentSwitch.getId() + ": " );
+				// for each port on that node
 				for( int port : currentSwitch.getEnabledPortNumbers() ) {
 					
-					// change weight and best port if the path is better
-					if( node.getDistance() > node.getLinkedNodes().get( port ).getDistance() + 1 ) {
+					// change weight and best port if the path is better					
+					if( node.getLinkedNodes().get( port ) != null && node.getDistance() > node.getLinkedNodes().get( port ).getDistance() + 1 ) {
 						node.setDistance( node.getLinkedNodes().get( port ).getDistance() + 1 );
 						node.setBestPort( port );
 					}
 				}
+				if(i == switchTopo.size() - 2 ) {
+					//System.out.print(node.getDistance() + " Hops back to " + sourceSwitch.getId() + " through port " + node.getBestPort() + " " );
+					System.out.println("");
+				}
+				
 			}
 		}
 		
