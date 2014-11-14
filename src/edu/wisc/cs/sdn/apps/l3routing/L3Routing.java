@@ -530,12 +530,14 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	private void bellmanFord( Host sourceHost ) {
 		List<BFNode> switchTopo = new ArrayList<BFNode>();
 		IOFSwitch sourceSwitch = sourceHost.getSwitch();
+		BFNode sourceNode = null;
 		
 		// add switches to switchTopo
 		for( IOFSwitch iofSwitch : getSwitches().values() ) {
 			BFNode node = null;
 			if( iofSwitch.equals( sourceSwitch ) ) {
 				node = new BFNode( iofSwitch, 0 );
+				sourceNode = node;
 			}
 			else {
 				node = new BFNode( iofSwitch, INFINITY );
@@ -569,7 +571,62 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			}
 		}
 		
-		// Install rules!!
+		// now install instructions!
+		for( Host host : getHosts() ) {
+			if( host.getSwitch().equals( sourceSwitch ) ) {
+				for( BFNode destNode : switchTopo ) {
+					if( destNode != sourceNode ) {
+						OFInstructionApplyActions instructions = new OFInstructionApplyActions();
+						
+						//create new option with outgoing port
+						OFActionOutput action = new OFActionOutput();
+						action.setPort( destNode.getBestPort() );
+						
+						// add action to list of rules
+						List<OFAction> rules = new ArrayList<OFAction>();
+						rules.add( action );
+						instructions.setActions( rules );
+						
+						OFMatch match = new OFMatch();
+						
+						// TODO: IPv4 necessary?
+						match.setDataLayerType( OFMatch.ETH_TYPE_IPV4 );
+						match.setNetworkDestination( host.getIPv4Address() );
+						
+						List<OFInstruction> instructionList = Arrays.asList( (OFInstruction) new OFInstructionApplyActions().setActions( rules ) );
+						if( !SwitchCommands.installRule( destNode.getSwitch(), table, SwitchCommands.DEFAULT_PRIORITY, match, instructionList ) ) {
+							System.out.println( "CRISIS ALERT, RULE NOT INSTALLED CORRECTLY" );
+							return;
+						}
+					}
+					else {
+						// add rule to get to this host from the source node
+						OFInstructionApplyActions instructions = new OFInstructionApplyActions();
+						
+						//create new option with outgoing port
+						OFActionOutput action = new OFActionOutput();
+						action.setPort( host.getPort() );
+						
+						// add action to list of rules
+						List<OFAction> rules = new ArrayList<OFAction>();
+						rules.add( action );
+						instructions.setActions( rules );
+						
+						OFMatch match = new OFMatch();
+						
+						// TODO: IPv4 necessary?
+						match.setDataLayerType( OFMatch.ETH_TYPE_IPV4 );
+						match.setNetworkDestination( host.getIPv4Address() );
+						
+						List<OFInstruction> instructionList = Arrays.asList( (OFInstruction) new OFInstructionApplyActions().setActions( rules ) );
+						if( !SwitchCommands.installRule( destNode.getSwitch(), table, SwitchCommands.DEFAULT_PRIORITY, match, instructionList ) ) {
+							System.out.println( "CRISIS ALERT, RULE NOT INSTALLED CORRECTLY" );
+							return;
+						}
+					}
+				}
+			}
+		}
 	}
 	
 	private void setupBFLinks( List<BFNode> switchTopo ) {
