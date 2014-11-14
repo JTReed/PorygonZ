@@ -446,7 +446,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			for( int i = 0; i < switchTopo.size() - 1; i++ ) {
 				for( BFNode node : switchTopo ) {
 					currentSwitch = node.getSwitch();
-					if(i == switchTopo.size() - 2 ) System.out.print("  Switch " + currentSwitch.getId() + ": " );
+					//if(i == switchTopo.size() - 2 ) System.out.print("  Switch " + currentSwitch.getId() + ": " );
 					// for each port on that node
 					for( int port : currentSwitch.getEnabledPortNumbers() ) {
 						
@@ -458,7 +458,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 					}
 					if(i == switchTopo.size() - 2 ) {
 						//System.out.print(node.getDistance() + " Hops back to " + sourceSwitch.getId() + " through port " + node.getBestPort() + " " );
-						System.out.println("");
+						//System.out.println("");
 					}
 					
 				}
@@ -491,9 +491,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 								System.out.println( "CRISIS ALERT, RULE NOT INSTALLED CORRECTLY" );
 								return;
 							}
-							else {
-								System.out.println( "Instruction installed on switch " + destNode.getSwitch().getId() );
-							}
 						}
 						else {
 							// add rule to get to this host from the source node
@@ -518,9 +515,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 							if( !SwitchCommands.installRule( destNode.getSwitch(), table, SwitchCommands.DEFAULT_PRIORITY, match, instructionList ) ) {
 								System.out.println( "CRISIS ALERT, RULE NOT INSTALLED CORRECTLY" );
 								return;
-							}
-							else {
-								System.out.println( "Instruction installed on switch " + destNode.getSwitch().getId() );
 							}
 						}
 					}
