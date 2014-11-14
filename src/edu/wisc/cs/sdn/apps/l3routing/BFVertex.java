@@ -23,6 +23,12 @@ public class BFVertex {
 		
 	}
 	
+	public BFVertex(IOFSwitch iofSwitch, int cost) {
+		this.iofSwitch = iofSwitch;
+		this.cost = cost;
+		this.immNeighbors = new HashMap<Integer, BFVertex>();
+	}
+	
 	public int getCost() {
 		return this.cost;
 	

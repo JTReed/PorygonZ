@@ -51,6 +51,10 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
     
     // Map of hosts to devices
     private Map<IDevice,Host> knownHosts;
+    
+    private int INFINITY = 1000000000;
+    
+    private boolean init = false;
 
 	/**
      * Loads dependencies and initializes data structures.
@@ -386,10 +390,136 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	}
 	
 	private void bellmanFord( Host sourceHost ) {
-	
+		//pass in null if just re-calculating:
+			//switchAdded, switchRemoved, linkDiscoveryUpdate
+		//pass in host if adding/removing:
+			//deviceAdded, deviceMoved, 
+		
 		//TODO: Remove
 		System.out.println( "Starting bellmanFord" );
 
+		//recalculate: deviceAdded, deviceMoved
+		if ( sourceHost != null ){
+			
+			// init - add all switches to the switch list
+			List<BFVertex> switches = new ArrayList<BFVertex>();
+			//get list of switches
+			IOFSwitch sourceSwitch= sourceHost.getSwitch();
+			
+			// init: set costs to infinity, but !source, set source 0
+			//TODO: n-1 times?
+			for (IOFSwitch tempSwitch: this.getSwitches().values()) {
+				
+				BFVertex tmpVertex = new BFVertex();
+				if (tempSwitch.equals(sourceSwitch)){
+					tmpVertex = new BFVertex(tempSwitch, 0);
+				}
+			
+				else{
+					tmpVertex = new BFVertex(tempSwitch, INFINITY);
+				}
+				
+				switches.add(tmpVertex);
+			}//end for each loop
+
+			//store the immNeighbers for every switch
+			for (BFVertex neigh: switches) {
+				for (int port: neigh.getSwitch().getEnabledPortNumbers()) {
+					for (Link link: this.getLinks()) {
+						if (link.getSrc() == port) {
+							for (BFVertex vertex: switches) {
+								if (vertex.getSwitch().getEnabledPortNumbers().
+										contains(link.getDst())) {
+									neigh.addImmNeighbor(port, neigh);
+									break;
+
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			//Relax weights??? -- unsure
+				//recalculate costs to each dest from source
+				//for (BFVertex source: switches){
+					//for each port, compare weight of source to all neighs
+					//for(int port: source.getSwitch().getEnabledPortNumbers()){
+						//BFVertex immNeigh = source.getImmNeighbors().get(port);
+						//if neigh has less cost go through that neigh
+						
+						//if (source.getCost() > immNeigh.getCost() + 1) {
+							//source.setCost (immNeigh.getCost() + 1);
+							//source.SetPortOut(port);
+						//}
+					//}
+				//}
+		}//end !null check
+		
+		//re-checking
+		else {
+			
+			List<BFVertex> switches = new ArrayList<BFVertex>();
+
+			// init switches
+			for (IOFSwitch currSw: this.getSwitches().values()) {
+				BFVertex tempVertex = new BFVertex();
+				tempVertex = new BFVertex(currSw, INFINITY);
+				switches.add(tempVertex);
+			}
+			
+			//store the immNeighbers for every switch
+			for (BFVertex neigh: switches) {
+				for (int port: neigh.getSwitch().getEnabledPortNumbers()) {
+					for (Link link: this.getLinks()) {
+						if (link.getSrc() == port) {
+							for (BFVertex vertex: switches) {
+								if (vertex.getSwitch().getEnabledPortNumbers().
+										contains(link.getDst())) {
+									neigh.addImmNeighbor(port, neigh);
+									break;
+
+								}
+							}
+						}
+					}
+				}
+			}
+			
+			for (BFVertex source : switches){
+				
+				IOFSwitch srcSwitch = source.getSwitch();
+				
+				// re-check weights for each
+				for (IOFSwitch tmpSwitch : this.getSwitches().values()) {
+					BFVertex tempVertex = new BFVertex();
+					if (tmpSwitch.equals(srcSwitch)){
+						tempVertex = new BFVertex(tmpSwitch, 0);
+					}
+				else{
+					tempVertex = new BFVertex(tmpSwitch, INFINITY);
+				}
+					
+				switches.add(tempVertex);
+				
+				}//end for each loop tmpSwitch
+				
+				
+				//relax weights????
+					//go through all links and recalculate costs to every dest from source
+					//for (BFVertex source: switches)
+						//compare weight to all neighs
+						//if neigh.cost < currNeigh, go through that neighbor
+						//for (int port: source.getImmSwitch().getEnabledPortNumbers())
+				
+				//iterate through all hosts of curr switch source, make new path
+				//for (Host host: this.getHosts()){
+				//}
+				
+			
+			}//end for each loop source
+		}//end else
+		
 		
 		/*
 		 * Use Bellman-Ford algorithm to build tables!
@@ -399,10 +529,11 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		 *  - all are distance to host from source host
 		 */
 		
-		Collection<Host> hosts = getHosts();
+			//TODO: uncomment?
+		/*Collection<Host> hosts = getHosts();
 		Map<Long, IOFSwitch> switches = getSwitches();
 		Collection<Link> links = getLinks();
-		int hostCount = hosts.size();
+		int hostCount = hosts.size();*/
 		
 		//Implement Bellman-Ford with hostCount-1 iterations
 		/*for( int iteration = 0; iteration < hostCount; iteration++ ) {
@@ -410,7 +541,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 				
 			}
 		}*/
-	}
+	}//end BF func
+	
 	
 	private void printData() {
 		System.out.println( "Hosts: " + getHosts().toString() );
