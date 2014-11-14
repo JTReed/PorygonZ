@@ -54,7 +54,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
     private Map<IDevice,Host> knownHosts;
     
     //TODO: Remove these test variables and all mentions of them
-    int numberOfSwitches;
+    int numberOfLinks;
 
 	/**
      * Loads dependencies and initializes data structures.
@@ -80,7 +80,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
         /*********************************************************************/
         /* TODO: Initialize other class variables, if necessary              */
         
-        this.numberOfSwitches = 3;
+        this.numberOfLinks = 6;
         /*********************************************************************/
 	}
 
@@ -217,10 +217,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		/*********************************************************************/
 		/* TODO: Update routing: change routing rules for all hosts          */
 
-		this.numberOfSwitches--;
-		if( this.numberOfSwitches == 0 ) {
-			bellmanFord();
-		}
 		/*********************************************************************/
 	}
 
@@ -262,6 +258,11 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 				log.info(String.format("Link s%s:%d -> %s:%d updated", 
 					update.getSrc(), update.getSrcPort(),
 					update.getDst(), update.getDstPort()));
+				
+				this.numberOfLinks--;
+				if( this.numberOfLinks == 0 ) {
+					bellmanFord();
+				}
 			}
 		}
 		
