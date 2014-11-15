@@ -176,6 +176,15 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		/*********************************************************************/
 		/* TODO: Update routing: remove rules to route to host               */
 		
+		OFMatch match = new OFMatch();
+		match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
+		
+		for( IOFSwitch sw : getSwitches().values() ) {
+			SwitchCommands.removeRules(sw, table, match );
+			
+			this.getHosts().remove( host );
+		}
+		
 		/*********************************************************************/
 	}
 
@@ -203,6 +212,14 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		
 		/*********************************************************************/
 		/* TODO: Update routing: change rules to route to host               */
+		
+		OFMatch match = new OFMatch();
+		match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
+		
+		for( IOFSwitch sw : getSwitches().values() ) {
+			SwitchCommands.removeRules(sw, table, match );
+		}
+			
 		bellmanFord( host );
 		
 		/*********************************************************************/
@@ -237,6 +254,24 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		
 		/*********************************************************************/
 		/* TODO: Update routing: change routing rules for all hosts          */
+		// remove hosts too
+		
+		for( Host host : getHosts() ) {
+			if( host.getSwitch().equals( sw ) ) {
+				// connected to switch, need to remove
+				
+				OFMatch match = new OFMatch();
+				match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
+				
+				for( IOFSwitch swtch : getSwitches().values() ) {
+					SwitchCommands.removeRules(swtch, table, match );
+				}
+				
+				this.getHosts().remove( host );
+			}
+		}
+		
+		this.getSwitches().remove( sw );
 		
 		/*********************************************************************/
 	}
