@@ -422,127 +422,17 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	 * 
 	 */
 	private void bellmanFord( ) {
-	
-		//TODO: Remove
-		//System.out.println( "Starting bellmanFord" );
-
 		/*
 		 * Use Bellman-Ford algorithm to build tables!
 		 * Passed in sourceHost so we know where to start
 		 * Things to remember about Bellman-Ford:
-		 *  - Iterate V - 1 times bwhere V is the number of hosts
+		 *  - Iterate V - 1 times where V is the number of nodes
 		 *  - all are distance to host from source host
 		 */
 		
-		// Initialize list of BFNodes for each switch - with dist infinity
-		// Set all the linked nodes
-		List<BFNode> switchTopo = new ArrayList<BFNode>();
-		
-		// add switches to switchTopo
-		for( IOFSwitch iofSwitch : getSwitches().values() ) {
-			BFNode node = new BFNode( iofSwitch, INFINITY );
-			switchTopo.add( node );
+		for( Host host : getHosts() ) {
+			bellmanFord( host );
 		}
-		setupBFLinks( switchTopo );		
-		
-		// loop through each switch and treat it as source
-		for( BFNode sourceNode : switchTopo ) {
-			IOFSwitch sourceSwitch = sourceNode.getSwitch();
-			
-			// we need to reset all weights in the graph for each new source so we can run Bellman-Ford
-			for( BFNode node : switchTopo ) {
-				if( node.equals( sourceNode ) ) {
-					node.setDistance( 0 );
-				}
-				else {
-					node.setDistance( INFINITY );
-				}
-			}
-			
-			// Run Bellman-Ford for V - 1 iterations where V is the number of switches
-			// based on <http://algs4.cs.princeton.edu/44sp/BellmanFordSP.java.html> we see that order doesn't matter
-			IOFSwitch currentSwitch = null;
-			//System.out.println( "Source: Switch " + sourceSwitch.getId() );
-			for( int i = 0; i < switchTopo.size() - 1; i++ ) {
-				for( BFNode node : switchTopo ) {
-					currentSwitch = node.getSwitch();
-					//if(i == switchTopo.size() - 2 ) System.out.print("  Switch " + currentSwitch.getId() + ": " );
-					// for each port on that node
-					for( int port : currentSwitch.getEnabledPortNumbers() ) {
-						
-						// change weight and best port if the path is better					
-						if( node.getLinkedNodes().get( port ) != null && node.getDistance() > node.getLinkedNodes().get( port ).getDistance() + 1 ) {
-							node.setDistance( node.getLinkedNodes().get( port ).getDistance() + 1 );
-							node.setBestPort( port );
-						}
-					}
-					if(i == switchTopo.size() - 2 ) {
-						//System.out.print(node.getDistance() + " Hops back to " + sourceSwitch.getId() + " through port " + node.getBestPort() + " " );
-						//System.out.println("");
-					}
-					
-				}
-			}
-			
-			// now install instructions!
-			//System.out.println( "Installing instructions for " + getHosts().size() + " hosts" );
-			for( Host host : getHosts() ) {
-				//if( host.getSwitch() == null ) { System.out.println( "Host " + host.getName() + " does not have a switch" ); }
-				if( host.getSwitch() != null && host.getSwitch().equals( sourceSwitch ) ) {
-					for( BFNode destNode : switchTopo ) {
-						if( destNode != sourceNode ) {
-							OFInstructionApplyActions instructions = new OFInstructionApplyActions();
-							
-							//create new option with outgoing port
-							OFActionOutput action = new OFActionOutput();
-							action.setPort( destNode.getBestPort() );
-							
-							// add action to list of rules
-							List<OFAction> rules = new ArrayList<OFAction>();
-							rules.add( action );
-							instructions.setActions( rules );
-							
-							OFMatch match = new OFMatch();
-							
-							// TODO: IPv4 necessary?
-							match.setDataLayerType( OFMatch.ETH_TYPE_IPV4 );
-							match.setNetworkDestination( host.getIPv4Address() );
-							
-							List<OFInstruction> instructionList = Arrays.asList( (OFInstruction) new OFInstructionApplyActions().setActions( rules ) );
-							if( !SwitchCommands.installRule( destNode.getSwitch(), table, SwitchCommands.DEFAULT_PRIORITY, match, instructionList ) ) {
-								System.out.println( "CRISIS ALERT, RULE NOT INSTALLED CORRECTLY" );
-								return;
-							}
-						}
-						else {
-							// add rule to get to this host from the source node
-							OFInstructionApplyActions instructions = new OFInstructionApplyActions();
-							
-							//create new option with outgoing port
-							OFActionOutput action = new OFActionOutput();
-							action.setPort( host.getPort() );
-							
-							// add action to list of rules
-							List<OFAction> rules = new ArrayList<OFAction>();
-							rules.add( action );
-							instructions.setActions( rules );
-							
-							OFMatch match = new OFMatch();
-							
-							// TODO: IPv4 necessary?
-							match.setDataLayerType( OFMatch.ETH_TYPE_IPV4 );
-							match.setNetworkDestination( host.getIPv4Address() );
-							
-							List<OFInstruction> instructionList = Arrays.asList( (OFInstruction) new OFInstructionApplyActions().setActions( rules ) );
-							if( !SwitchCommands.installRule( destNode.getSwitch(), table, SwitchCommands.DEFAULT_PRIORITY, match, instructionList ) ) {
-								System.out.println( "CRISIS ALERT, RULE NOT INSTALLED CORRECTLY" );
-								return;
-							}
-						}
-					}
-				}
-			}
-		}		
 	}
 	
 	/**
