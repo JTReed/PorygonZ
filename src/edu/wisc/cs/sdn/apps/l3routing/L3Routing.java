@@ -187,7 +187,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			
 		}*/
 		
-		removeRules( host );
+		//removeRules( host );
 		this.getHosts().remove( host );
 		
 		/*********************************************************************/
@@ -225,7 +225,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			SwitchCommands.removeRules(sw, table, match );
 		}*/
 			
-		removeRules( host );
+		//removeRules( host );
 		bellmanFord( host );
 		
 		/*********************************************************************/
@@ -254,7 +254,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			//for( IOFSwitch sw : getSwitches().values() ) {
 				//SwitchCommands.removeRules(sw, table, match );
 			//}
-		removeAllRules();
+		//removeAllRules();
 		bellmanFord();
 
 		/*********************************************************************/
@@ -291,7 +291,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		
 		for( Host host : getHosts() ) {
 			if( host.getSwitch().equals( sw ) ) {
-				removeRules( host );
+				//removeRules( host );
+				this.getHosts().remove( host );
 			}
 		}
 		this.getSwitches().remove( sw );
@@ -339,7 +340,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 				//SwitchCommands.removeRules(sw, table, match );
 			//}
 		
-		removeAllRules();
+		//removeAllRules();
 		bellmanFord();
 		
 		/*********************************************************************/
