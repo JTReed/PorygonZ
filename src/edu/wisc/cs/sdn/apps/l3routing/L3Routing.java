@@ -149,6 +149,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			
 			/*****************************************************************/
 			/* TODO: Update routing: add rules to route to new host          */
+			// K - add host to list and re-calculate BF
+			this.getHosts().add(host);
 			bellmanFord( host );
 			
 			/*****************************************************************/
@@ -219,6 +221,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		for( IOFSwitch sw : getSwitches().values() ) {
 			SwitchCommands.removeRules(sw, table, match );
 		}
+		
+		
 			
 		bellmanFord( host );
 		
@@ -237,6 +241,17 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		
 		/*********************************************************************/
 		/* TODO: Update routing: change routing rules for all hosts          */
+		
+		// K - add switch to the switch list before calling BF?
+		this.getSwitches().put(sw.getId(), sw);
+		
+		//TODO: before calling BF, perhaps we should remove rules before recalculating? 
+		//for (Host host:   getHosts() ) go through every host
+			//OFMatch match = new OFMatch();
+			//match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
+			//for( IOFSwitch sw : getSwitches().values() ) {
+				//SwitchCommands.removeRules(sw, table, match );
+			//}
 		bellmanFord();
 
 		/*********************************************************************/
@@ -272,6 +287,9 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		}
 		
 		this.getSwitches().remove( sw );
+		
+		//K - call BF to recalculate/add rules
+		bellmanFord();
 		
 		/*********************************************************************/
 	}
