@@ -243,7 +243,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		/* TODO: Update routing: change routing rules for all hosts          */
 		
 		for( Host host : getHosts() ) {
-			if( host.getSwitch().equals( sw ) ) {
+			if( host.getSwitch() != null && host.getSwitch().equals( sw ) ) {
 				removeRules( host );
 			}
 		}
@@ -595,7 +595,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		
 		// now install instructions!
 		for( Host host : getHosts() ) {
-			if( host.getSwitch().equals( sourceSwitch ) ) {
+			if( host.getSwitch() != null && host.getSwitch().equals( sourceSwitch ) ) {
 				for( BFNode destNode : switchTopo ) {
 					if( destNode != sourceNode ) {
 						OFInstructionApplyActions instructions = new OFInstructionApplyActions();
@@ -684,10 +684,13 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	
 	private void removeRules( Host host ) {
 		OFMatch match = new OFMatch();
-		match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
+		 match.setDataLayerType( OFMatch.ETH_TYPE_IPV4 );
+		 match.setNetworkDestination( host.getIPv4Address() );
 		
 		for( IOFSwitch swtch : getSwitches().values() ) {
-			SwitchCommands.removeRules(swtch, table, match );
+			if( !SwitchCommands.removeRules(swtch, table, match ) ) {
+				System.out.println( "could not remove rule for some reason" );
+			}
 		}
 	}
 	
