@@ -149,8 +149,6 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			
 			/*****************************************************************/
 			/* TODO: Update routing: add rules to route to new host          */
-			// K - add host to list and re-calculate BF
-			this.getHosts().add( host );
 			bellmanFord( host );
 			
 			/*****************************************************************/
@@ -177,18 +175,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		
 		/*********************************************************************/
 		/* TODO: Update routing: remove rules to route to host               */
-		
-		/*OFMatch match = new OFMatch();
-		match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
-		
-		for( IOFSwitch sw : getSwitches().values() ) {
-			SwitchCommands.removeRules(sw, table, match );
-			
-			
-		}*/
-		
-		//removeRules( host );
-		this.getHosts().remove( host );
+		removeRules( host );
 		
 		/*********************************************************************/
 	}
@@ -217,15 +204,8 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		
 		/*********************************************************************/
 		/* TODO: Update routing: change rules to route to host               */
-		
-		/*OFMatch match = new OFMatch();
-		match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
-		
-		for( IOFSwitch sw : getSwitches().values() ) {
-			SwitchCommands.removeRules(sw, table, match );
-		}*/
 			
-		//removeRules( host );
+		removeRules( host );
 		bellmanFord( host );
 		
 		/*********************************************************************/
@@ -243,18 +223,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		
 		/*********************************************************************/
 		/* TODO: Update routing: change routing rules for all hosts          */
-		
-		// K - add switch to the switch list before calling BF?
-		this.getSwitches().put(sw.getId(), sw);
-		
-		//TODO: before calling BF, perhaps we should remove rules before recalculating? 
-		//for (Host host:   getHosts() ) go through every host
-			//OFMatch match = new OFMatch();
-			//match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
-			//for( IOFSwitch sw : getSwitches().values() ) {
-				//SwitchCommands.removeRules(sw, table, match );
-			//}
-		//removeAllRules();
+		removeAllRules();
 		bellmanFord();
 
 		/*********************************************************************/
@@ -272,30 +241,12 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		
 		/*********************************************************************/
 		/* TODO: Update routing: change routing rules for all hosts          */
-		// remove hosts too
-		
-		/*for( Host host : getHosts() ) {
-			if( host.getSwitch().equals( sw ) ) {
-				// connected to switch, need to remove
-				
-				OFMatch match = new OFMatch();
-				match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
-				
-				for( IOFSwitch swtch : getSwitches().values() ) {
-					SwitchCommands.removeRules(swtch, table, match );
-				}
-				
-				this.getHosts().remove( host );
-			}
-		}*/
 		
 		for( Host host : getHosts() ) {
 			if( host.getSwitch().equals( sw ) ) {
-				//removeRules( host );
-				this.getHosts().remove( host );
+				removeRules( host );
 			}
 		}
-		this.getSwitches().remove( sw );
 		
 		//K - call BF to recalculate/add rules
 		bellmanFord();
@@ -331,16 +282,9 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		/*********************************************************************/
 		/* TODO: Update routing: change routing rules for all hosts          */
 		
-		//K - remove all old rules so no overlap
 		//TODO: before calling BF, perhaps we should remove rules before recalculating? 
-		//for (Host host:   getHosts() ) go through every host
-			//OFMatch match = new OFMatch();
-			//match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
-			//for( IOFSwitch sw : getSwitches().values() ) {
-				//SwitchCommands.removeRules(sw, table, match );
-			//}
 		
-		//removeAllRules();
+		removeAllRules();
 		bellmanFord();
 		
 		/*********************************************************************/
@@ -480,7 +424,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 	private void bellmanFord( ) {
 	
 		//TODO: Remove
-		System.out.println( "Starting bellmanFord" );
+		//System.out.println( "Starting bellmanFord" );
 
 		/*
 		 * Use Bellman-Ford algorithm to build tables!
@@ -541,8 +485,10 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			}
 			
 			// now install instructions!
+			//System.out.println( "Installing instructions for " + getHosts().size() + " hosts" );
 			for( Host host : getHosts() ) {
-				if( host.getSwitch().equals( sourceSwitch ) ) {
+				//if( host.getSwitch() == null ) { System.out.println( "Host " + host.getName() + " does not have a switch" ); }
+				if( host.getSwitch() != null && host.getSwitch().equals( sourceSwitch ) ) {
 					for( BFNode destNode : switchTopo ) {
 						if( destNode != sourceNode ) {
 							OFInstructionApplyActions instructions = new OFInstructionApplyActions();
@@ -629,7 +575,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		for( int i = 0; i < switchTopo.size() - 1; i++ ) {
 			for( BFNode node : switchTopo ) {
 				currentSwitch = node.getSwitch();
-				if(i == switchTopo.size() - 2 ) System.out.print("  Switch " + currentSwitch.getId() + ": " );
+				//if(i == switchTopo.size() - 2 ) System.out.print("  Switch " + currentSwitch.getId() + ": " );
 				// for each port on that node
 				for( int port : currentSwitch.getEnabledPortNumbers() ) {
 					
