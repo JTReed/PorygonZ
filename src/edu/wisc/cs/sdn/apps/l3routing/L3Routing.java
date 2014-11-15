@@ -321,6 +321,16 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 		
 		/*********************************************************************/
 		/* TODO: Update routing: change routing rules for all hosts          */
+		
+		//K - remove all old rules so no overlap
+		//TODO: before calling BF, perhaps we should remove rules before recalculating? 
+		//for (Host host:   getHosts() ) go through every host
+			//OFMatch match = new OFMatch();
+			//match.setNetworkDestination( OFMatch.ETH_TYPE_IPV4, host.getIPv4Address() );
+			//for( IOFSwitch sw : getSwitches().values() ) {
+				//SwitchCommands.removeRules(sw, table, match );
+			//}
+		
 		bellmanFord();
 		
 		/*********************************************************************/
