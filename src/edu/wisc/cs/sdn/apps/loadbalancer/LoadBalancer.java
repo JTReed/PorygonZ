@@ -534,8 +534,13 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		//3. set ethernet pkt fields
 		//4. send
 		
+		LoadBalancerInstance LBInstance;
+		
+		int virtualIP = ipPkt.getDestinationAddress();
+		LBInstance = instances.get( virtualIP );
+		
 		// update TCP header
-		TCPpkt.setFlags( (short) TCP_FLAG_RST );
+		TCPpkt.setFlags( (short)TCP_FLAG_RST );
 		TCPpkt.setSequence( TCPpkt.getAcknowledge() );
 		// "When a receiver advertises a window size of 0, the sender stops sending data and starts the persist timer."
 		TCPpkt.setWindowSize( (short) 0 );
@@ -554,7 +559,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		// update Ethernet header
 		ethPkt.setPayload( ipPkt );
 		byte[] targetMACAddress = ethPkt.getSourceMACAddress();
-		byte[] sourceMACAddress = ethPkt.getDestinationMACAddress();
+		byte[] sourceMACAddress = LBInstance.getVirtualMAC();
 		ethPkt.setDestinationMACAddress( targetMACAddress );
 		ethPkt.setSourceMACAddress( sourceMACAddress );
 		
