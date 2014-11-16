@@ -203,80 +203,36 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		/*       for all other TCP packets sent to a virtual IP, send a TCP  */
 		/*       reset; ignore all other packets                             */
 		
-		//Case: ARP request:
 		short type = ethPkt.getEtherType();
+		
 		switch(type){
 			case Ethernet.TYPE_ARP:
 				//cases: ARP.OP_REQUEST(?) 
 				System.out.println("Found TYPE_ARP");
 				ARP ARPpkt = (ARP)ethPkt.getPayload();
 				
-				//TODO: Begin the madness....
-				
-				// It's a trap! I mean, request! Yay, client!
-				//we're going to construct ARP replies, but need to get information first
+				//It's a trap!
+				// we're going to construct ARP replies
 				if (ARPpkt.getOpCode() == ARP.OP_REQUEST) {
 					
-					//need LBInstance object to get LB instance from MAP<instances, int vitualIP> so we can get Virtual MAC for ARPpkt
-					LoadBalancerInstance LBInstance;
-					
-					//but we should probs:
-						//get infor to send reply: note: SwitchCommands.java holds methods to send pkt
-					
-							//1. need virtual IP of intended dest
-								//get target address: 
-								byte[] targetAddress = ARPpkt.getTargetProtocolAddress();
-								//cast byte array as IPv4 address: 
-								int virtualIP = IPv4.toIPv4Address(targetAddress);
-								
-							//2. MAP of <instances, virtIP>: use virtual IP to get the LB instance associated, used to get VirtMAC
-								LBInstance = instances.get(virtualIP);
-								
-							//3. we need to swap sender and dest fields to send back to requester - so get information needed
-								//get client's protocol address - will be ARPreply's target protocol add
-								byte[] targetProtocolAddress = ARPpkt.getSenderProtocolAddress();
-								//get client's hardware address - will be ARPreply's target Hrdwr Add
-								byte[] targetHardwareAddress = ARPpkt.getSenderHardwareAddress();
-								//use virtual IP to get it's IPv4 address - will be sender's Protocol Address
-								byte[] senderProtocolAddress = IPv4.toIPv4AddressBytes(virtualIP);
-								//get virtual MAC from LB instance we found from VIRTual IP in (2) - will be sender's Hardware Add
-								byte[] senderHardwareAddress = LBInstance.getVirtualMAC();
-								//get eth pkt's curr source MAC address - will be destMACAddress for eth pkt
-								byte[] destMACAddress = ethPkt.getSourceMACAddress();
-								
-							//4. we need to swap, so set pkt's fields from (3):
-								ARPpkt.setOpCode(ARP.OP_REPLY);
-								ARPpkt.setTargetProtocolAddress(targetProtocolAddress);
-								ARPpkt.setTargetHardwareAddress(targetHardwareAddress);
-								ARPpkt.setSenderProtocolAddress(senderProtocolAddress);
-								ARPpkt.setSenderHardwareAddress(senderHardwareAddress);
-								
-							//5. set ethernet pkt fields so it routes to correct dest (source and MAC address need to be changed)
-								ethPkt.setPayload(ARPpkt);
-								ethPkt.setDestinationMACAddress( destMACAddress );
-								//use same senderHardwareAddress? I can't imagine not...
-								ethPkt.setSourceMACAddress( senderHardwareAddress );
-								
-							//6. done with building ARPpkt, so send it off!
-								//outSw is sw, outPort is pkt's inPort (what the request to control is called), ethpkt is ethpkt
-								short outPort = (short)pktIn.getInPort();
-								//SwitchCommands.sendPacket(outSw, outPort, eth)
-								SwitchCommands.sendPacket( sw, outPort, ethPkt );
-
-				}
-				//it's a reply or something else otherwise! Meaning it should have come from server heading to client! Supposedly..
-				//				
-				else if (ethPkt.getEtherType() == Ethernet.TYPE_IPv4){
-					IPv4 IPpkt = null;
-					IPpkt = (IPv4)ethPkt.getPayload();
-					
-					//checkout IPv4.java!
+					//made this function to handle ARP requests
+					handleARPRequest(ethPkt, ARPpkt, pktIn, sw);
 					
 				}
 				
+				//it's a reply or something else ! 
+				else if (ARPpkt.getOpCode() == ARP.OP_REPLY){
+					//this shouldn't happen - WE construct replies...
+					//TODO: remove - this is for testing purposes
+					System.out.println( "Something is terribly wrong here" );
+				}
+				//END ARP CASE
 				
-				
+			//If !ARP - it should have come from server heading to client! Probaby IPv4
 			case Ethernet.TYPE_IPv4:
+
+				IPv4 ipPacket = null;
+				ipPacket = (IPv4)ethPkt.getPayload();
 				//PROTOCOL_TCP (!SYN, then TCP reset?)
 				//SYN packet-init conenction
 					//SYN Packet Reply
@@ -469,6 +425,59 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		match, listOFInstructions);	
 		
 	}*/
+	
+	public void handleARPRequest(Ethernet ethPkt, ARP ARPpkt, OFPacketIn pktIn, IOFSwitch sw){
+		
+
+		//need LBInstance object to get LB instance from MAP<instances, int vitualIP> so we can get Virtual MAC for ARPpkt
+		LoadBalancerInstance LBInstance;
+		
+		//but we should probs:
+			//get infor to send reply: note: SwitchCommands.java holds methods to send pkt
+		
+				//1. need virtual IP of intended dest
+				//get target address: 
+				byte[] targetAddress = ARPpkt.getTargetProtocolAddress();
+				//cast byte array as IPv4 address: 
+				int virtualIP = IPv4.toIPv4Address(targetAddress);
+					
+				//2. MAP of <instances, virtIP>: use virtual IP to get the LB instance associated, used to get VirtMAC
+				LBInstance = instances.get(virtualIP);
+					
+				//3. we need to swap sender and dest fields to send back to requester - so get information needed
+				//TODO: add these to the set methods below, currently seperated for understanding
+				//get client's protocol address - will be ARPreply's target protocol add
+				byte[] targetProtocolAddress = ARPpkt.getSenderProtocolAddress();
+				//get client's hardware address - will be ARPreply's target Hrdwr Add
+				byte[] targetHardwareAddress = ARPpkt.getSenderHardwareAddress();
+				//use virtual IP to get it's IPv4 address - will be sender's Protocol Address
+				byte[] senderProtocolAddress = IPv4.toIPv4AddressBytes(virtualIP);
+				//get virtual MAC from LB instance we found from VIRTual IP in (2) - will be sender's Hardware Add
+				byte[] senderHardwareAddress = LBInstance.getVirtualMAC();
+				//get eth pkt's curr source MAC address - will be destMACAddress for eth pkt
+				byte[] destMACAddress = ethPkt.getSourceMACAddress();
+				
+				//4. we need to swap, so set pkt's fields from (3):
+				ARPpkt.setOpCode(ARP.OP_REPLY);
+				ARPpkt.setTargetProtocolAddress(targetProtocolAddress);
+				ARPpkt.setTargetHardwareAddress(targetHardwareAddress);
+				ARPpkt.setSenderProtocolAddress(senderProtocolAddress);
+				ARPpkt.setSenderHardwareAddress(senderHardwareAddress);
+					
+				//5. set ethernet pkt fields so it routes to correct dest (source and MAC address need to be changed)
+				ethPkt.setPayload(ARPpkt);
+				ethPkt.setDestinationMACAddress( destMACAddress );
+				//use same senderHardwareAddress? I can't imagine not...
+				ethPkt.setSourceMACAddress( senderHardwareAddress );
+					
+				//6. done with building ARPpkt, so send it off!
+				//outSw is sw, outPort is pkt's inPort (what the request to control is called), ethpkt is ethpkt
+				short outPort = (short)pktIn.getInPort();
+				SwitchCommands.sendPacket( sw, outPort, ethPkt );
+		
+		
+	}
+		
 	
 	
 }
