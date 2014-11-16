@@ -239,7 +239,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 				else if (ARPpkt.getOpCode() == ARP.OP_REPLY){
 					//this shouldn't happen - WE construct replies...
 					//TODO: remove - this is for testing purposes
-					System.out.println( "Something is terribly wrong here" );
+					System.out.println( "Error: Received ARP Reply" );
 				}
 				//END ARP CASE
 				
@@ -277,7 +277,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 				}
 
 				System.out.println("Found TYPE_IPv4");
-			default: System.out.println("Frick if I know what happened");
+			default: System.out.println("Error: Received packet neither ARP nor IPv4");
 				
 		}
 		
