@@ -10,10 +10,12 @@ import java.util.Map;
 
 import org.openflow.protocol.OFMatch;
 import org.openflow.protocol.OFMessage;
+import org.openflow.protocol.OFOXMFieldType;
 import org.openflow.protocol.OFPacketIn;
 import org.openflow.protocol.OFPort;
 import org.openflow.protocol.OFType;
 import org.openflow.protocol.action.OFActionOutput;
+import org.openflow.protocol.action.OFActionSetField;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -243,6 +245,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 					System.out.println( "Error: Received ARP Reply" );
 				}
 				//END ARP CASE
+				break;
 				
 			//If !ARP - it could have come from server or client, heading to server/client! Probaby IPv4
 			case Ethernet.TYPE_IPv4:
@@ -272,14 +275,17 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 					else if (TCPpkt.getFlags() == TCP_FLAG_SYN){
 						
 						//TODO: handleTCP method - this will add a TON of rules, ZOMG
-						handleTCP(ethPkt, TCPpkt, pktIn, sw);
+						handleTCP(ethPkt, IPpkt, TCPpkt, pktIn, sw);
 					}					
 				}
+				
 				else {
 					System.out.println( "IPv4, but not TCP ");
 				}
 
 				System.out.println("Found TYPE_IPv4");
+				break;
+				
 			default: System.out.println("Error: Received packet neither ARP nor IPv4");
 				
 		}
@@ -593,14 +599,66 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 			"we install the rule to override destination MAC and destination IP for all the incoming packets from that source."
 	 * 
 	 */
-	public void handleTCP(Ethernet ethPkt, TCP TCPpkt, OFPacketIn pktIn, IOFSwitch sw){
+	public void handleTCP(Ethernet ethPkt, IPv4 IPpkt, TCP TCPpkt, OFPacketIn pktIn, IOFSwitch sw){
 		
+		//likely need to resolve Virtual IP, so need LB Instance
+		LoadBalancerInstance LBInstance;
 		//TODO: handle TCP
 		//1. need virtual IP/MAC of intended dest
-		//2. MAP of <instances, virtIP>: use virtual IP/MAC to get real IP/MAC 
-		//3. set mactch criteria for src address of client's IP
-		//4. set action list of pkt's fields
-		//5. install rules?
+		//TCPpkt is SYN - meaning we are init the connection between client/host - also used in setting IP/TCP pkt information
+		int virtualIP = IPpkt.getDestinationAddress();
+		LBInstance = instances.get(virtualIP);
+
+		//2. use virtual IP/MAC to get real IP/MAC 
+		byte[] virtualMAC = LBInstance.getVirtualMAC();
+		// Resolve the host's virtual IP and MAC of the LB
+		int hostIP = LBInstance.getNextHostIP();
+		byte[] hostMAC = getHostMACAddress(hostIP);
+		
+		//3. set up the match criteria like before in L3routing - we need to set rules using them
+		OFMatch matchCriteria = new OFMatch();
+		
+		//TODO: seperate into different methods?
+		//3.a) set up the TCPpkt source/desk addresses
+		//set the pkt type
+		short TCPTransportDestinationAddress = TCPpkt.getDestinationPort();
+		short TCPTransportSourceAddress = TCPpkt.getSourcePort();
+		matchCriteria.setNetworkProtocol(OFMatch.IP_PROTO_TCP);
+		matchCriteria.setTransportDestination(OFMatch.IP_PROTO_TCP, TCPTransportDestinationAddress);
+		matchCriteria.setTransportSource(OFMatch.IP_PROTO_TCP, TCPTransportSourceAddress);
+
+		//TODO: seperate into different methods?
+		//3.b) set up IPpkt source/dest addresses
+		//set the pkt type
+		short IPNetworkSourceAddress = (short)IPpkt.getSourceAddress();
+		
+		matchCriteria.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
+		matchCriteria.setNetworkDestination(OFMatch.ETH_TYPE_IPV4, virtualIP);
+		matchCriteria.setNetworkSource(OFMatch.ETH_TYPE_IPV4, IPNetworkSourceAddress);
+		
+		//4. change the packets Action fields when it is send from client using the virutal IP to resolve
+		//setting fields for IPv4
+		OFActionSetField destinationIPAddress = new OFActionSetField(OFOXMFieldType.IPV4_DST, hostIP);
+		OFActionSetField sourceIPAddress = new OFActionSetField(OFOXMFieldType.IPV4_SRC, virtualIP);
+		//setting fields for ETH
+		OFActionSetField destinationMACAddress = new OFActionSetField(OFOXMFieldType.ETH_DST, hostMAC);
+		OFActionSetField sourceMACAddress = new OFActionSetField(OFOXMFieldType.ETH_SRC, virtualMAC);
+		
+		//5. set action list of pkt's fields
+		List<OFAction> actionList = new ArrayList<OFAction>();
+		actionList.add(destinationIPAddress);
+		actionList.add(destinationMACAddress);
+		actionList.add(sourceIPAddress);
+		actionList.add(sourceMACAddress);
+
+		//6. install rules?
+		List<OFInstruction> listOFInstructions = Arrays.asList((OFInstruction)
+				new	OFInstructionApplyActions().setActions(actionList),
+				new OFInstructionGotoTable().setTableId(l3RoutingApp.getTable()));
+				SwitchCommands.installRule(sw, table, (short)(SwitchCommands.DEFAULT_PRIORITY + 2),
+				matchCriteria, listOFInstructions, (short)0, IDLE_TIMEOUT);
+				
+		//7. loop through every switch and do stuff?
 		
 	}
 	
