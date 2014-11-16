@@ -227,6 +227,8 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 				// we're going to construct ARP replies
 				if (ARPpkt.getOpCode() == ARP.OP_REQUEST) {
 					
+					//check if null?
+					
 					//made this function to handle ARP requests
 					/**
 					 * You can construct an ARP reply packet using the classes in
@@ -659,7 +661,40 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 				matchCriteria, listOFInstructions, (short)0, IDLE_TIMEOUT);
 				
 		//7. loop through every switch and do stuff?
-		
+				
+				for( IOFSwitch currSwitch : floodlightProv.getAllSwitchMap().values() ) {
+					
+					matchCriteria = new OFMatch();
+
+					matchCriteria.setNetworkProtocol( OFMatch.IP_PROTO_TCP );
+					matchCriteria.setTransportDestination( OFMatch.IP_PROTO_TCP, TCPpkt.getSourcePort() );
+					matchCriteria.setTransportSource( OFMatch.IP_PROTO_TCP, TCPpkt.getDestinationPort() );
+
+					matchCriteria.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
+					matchCriteria.setNetworkDestination(OFMatch.ETH_TYPE_IPV4, virtualIP);
+					matchCriteria.setNetworkSource(OFMatch.ETH_TYPE_IPV4, hostIP);
+					
+					//setting fields for IPv4
+					destinationIPAddress = new OFActionSetField(OFOXMFieldType.IPV4_DST, IPpkt.getSourceAddress() );
+					sourceIPAddress = new OFActionSetField(OFOXMFieldType.IPV4_SRC, LBInstance.getVirtualIP() );
+					// Set Ethernet Fields
+					destinationMACAddress = new OFActionSetField(OFOXMFieldType.ETH_DST, ethPkt.getSourceMACAddress() );
+					sourceMACAddress = new OFActionSetField(OFOXMFieldType.ETH_SRC, LBInstance.getVirtualMAC() );
+					
+					actionList = new ArrayList<OFAction>();
+					actionList.add(destinationIPAddress);
+					actionList.add(destinationMACAddress);
+					actionList.add(sourceIPAddress);
+					actionList.add(sourceMACAddress);
+					
+					listOFInstructions = Arrays.asList( (OFInstruction)
+							new OFInstructionApplyActions().setActions( actionList ),
+							new OFInstructionGotoTable().setTableId( l3RoutingApp.getTable() ) );
+					
+					SwitchCommands.installRule( currSwitch, table, (short)(SwitchCommands.DEFAULT_PRIORITY + 2),
+							matchCriteria, listOFInstructions, (short)0, IDLE_TIMEOUT );
+
+				}
 	}
 	
 		
