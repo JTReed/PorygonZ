@@ -38,6 +38,7 @@ import net.floodlightcontroller.devicemanager.internal.DeviceManagerImpl;
 import net.floodlightcontroller.packet.ARP;
 import net.floodlightcontroller.packet.Ethernet;
 import net.floodlightcontroller.packet.IPv4;
+import net.floodlightcontroller.packet.TCP;
 import net.floodlightcontroller.util.MACAddress;
 
 import org.openflow.protocol.action.OFAction;
@@ -206,6 +207,14 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		short type = ethPkt.getEtherType();
 		
 		switch(type){
+		
+			/**
+			 * When a client wants to initiate a connection with the virtual IP, 
+			 * it will need to determine the MAC address associated with the 
+			 * virtual IP using ARP.  The client does not know the IP is virtual, 
+			 * and since it’s not actually assigned to any host, your SDN 
+			 * application must take responsibility for replying to these requests.
+			 */
 			case Ethernet.TYPE_ARP:
 				//cases: ARP.OP_REQUEST(?) 
 				System.out.println("Found TYPE_ARP");
@@ -216,6 +225,12 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 				if (ARPpkt.getOpCode() == ARP.OP_REQUEST) {
 					
 					//made this function to handle ARP requests
+					/**
+					 * You can construct an ARP reply packet using the classes in
+					 *  the net.floodlightcontroller.packet package. You can use 
+					 *  the sendPacket(...) method in the SwitchCommands class 
+					 *  to send the packet. 
+					 */
 					handleARPRequest(ethPkt, ARPpkt, pktIn, sw);
 					
 				}
@@ -228,15 +243,39 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 				}
 				//END ARP CASE
 				
-			//If !ARP - it should have come from server heading to client! Probaby IPv4
+			//If !ARP - it could have come from server or client, heading to server/client! Probaby IPv4
 			case Ethernet.TYPE_IPv4:
 
-				IPv4 ipPacket = null;
-				ipPacket = (IPv4)ethPkt.getPayload();
-				//PROTOCOL_TCP (!SYN, then TCP reset?)
-				//SYN packet-init conenction
-					//SYN Packet Reply
-					//SYN Packet Send
+				IPv4 IPpkt = null;
+				IPpkt = (IPv4)ethPkt.getPayload();
+				//PROTOCOL_TCP (!SYN, then TCP reset? Edit: Answer, YES!)
+				if (IPpkt.getProtocol() == IPv4.PROTOCOL_TCP){
+					
+					//cast as TCP packet type
+					TCP TCPpkt = (TCP)IPpkt.getPayload();
+					//TODO: handle TCP method
+					//if !typeSYN, then TCP reset:
+					/**
+					 * When the controller receives these TCP packets, which are not TCP SYN packets, 
+					 * it should construct and send a TCP reset. You can construct the packet using 
+					 * the classes in the net.floodlightcontroller.packet package—this is the same 
+					 * code we used for constructing packets in the last programming assignment
+					 */
+					if (TCPpkt.getFlags() != TCP_FLAG_SYN){
+
+						//TODO: handle TCPReset method
+						handleTCPReset(ethPkt, TCPpkt, pktIn, sw);
+						
+					}
+					
+					else if (TCPpkt.getFlags() == TCP_FLAG_SYN){
+						
+						//TODO: handleTCP method - this will add a TON of rules, ZOMG
+						handleTCP(ethPkt, TCPpkt, pktIn, sw);
+					}
+					
+				}
+
 				System.out.println("Found TYPE_IPv4");
 			default: System.out.println("Frick if I know what happened");
 				
@@ -426,6 +465,9 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		
 	}*/
 	
+	/**
+	 * Construct and send an ARP reply packet when a client requests the MAC address associated with a virtual IP
+	 */
 	public void handleARPRequest(Ethernet ethPkt, ARP ARPpkt, OFPacketIn pktIn, IOFSwitch sw){
 		
 
@@ -477,6 +519,48 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		
 		
 	}
+	
+	/**
+	 * Construct and send a TCP reset packet if the controller receives a TCP packet that is not a TCP SYN
+	 */
+	public void handleTCPReset(Ethernet ethPkt, TCP TCPpkt, OFPacketIn pktIn, IOFSwitch sw){
+		
+		//TODO:  
+		//TCP requires flags be set? 1. set flag?
+		//2. set target/sender protocol and hardware addresses
+		//3. set ethernet pkt fields
+		//4. send
+		
+	}
+	
+	/**
+	 *     Install rules in every switch to:
+	 *     
+    		Notify the controller when a client initiates a TCP connection with a virtual IP—we cannot specify TCP flags in match criteria, so the SDN switch will notify the controller of each TCP packet sent to a virtual IP which did not match a connection-specific rule (described below)
+    		Notify the controller when a client issues an ARP request for the MAC address associated with a virtual IP
+    		Match all other packets against the rules in the next table in the switch (described below)
+
+			These rules should be installed when a switch joins the network.
+
+    		Install connection-specific rules for each new connection to a virtual IP to:
+
+    		Rewrite the destination IP and MAC address of TCP packets sent from a client to the virtual IP
+    		Rewrite the source IP and MAC address of TCP packets sent from server to client
+
+			Connection-specific rules should match packets on the basis of Ethernet type, source IP address, destination IP address, protocol, TCP source port, and TCP destination port. Connection-specific rules should take precedence over the rules that send TCP packets to the controller, otherwise every TCP packet would be sent to the controller. Therefore, these rules should have a higher priority than the rules installed when a switch joins the network.  Also, we want connection-specific rules to be removed when a TCP connection ends, so connection-specific rules should have an idle timeout of 20 seconds.
+	 * 
+	 */
+	public void handleTCP(Ethernet ethPkt, TCP TCPpkt, OFPacketIn pktIn, IOFSwitch sw){
+		
+		//TODO: handle TCP
+		//1. need virtual IP/MAC of intended dest
+		//2. MAP of <instances, virtIP>: use virtual IP/MAC to get real IP/MAC 
+		//3. set mactch criteria for src address of client's IP
+		//4. set action list of pkt's fields
+		//5. install rules?
+		
+	}
+	
 		
 	
 	
