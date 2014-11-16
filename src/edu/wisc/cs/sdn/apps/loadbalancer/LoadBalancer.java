@@ -1,19 +1,25 @@
 package edu.wisc.cs.sdn.apps.loadbalancer;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
+import org.openflow.protocol.OFMatch;
 import org.openflow.protocol.OFMessage;
 import org.openflow.protocol.OFPacketIn;
+import org.openflow.protocol.OFPort;
 import org.openflow.protocol.OFType;
+import org.openflow.protocol.action.OFActionOutput;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import edu.wisc.cs.sdn.apps.l3routing.IL3Routing;
 import edu.wisc.cs.sdn.apps.util.ArpServer;
+import edu.wisc.cs.sdn.apps.util.SwitchCommands;
 
 import net.floodlightcontroller.core.FloodlightContext;
 import net.floodlightcontroller.core.IFloodlightProviderService;
@@ -31,6 +37,11 @@ import net.floodlightcontroller.devicemanager.IDeviceService;
 import net.floodlightcontroller.devicemanager.internal.DeviceManagerImpl;
 import net.floodlightcontroller.packet.Ethernet;
 import net.floodlightcontroller.util.MACAddress;
+
+import org.openflow.protocol.action.OFAction;
+import org.openflow.protocol.instruction.OFInstruction;
+import org.openflow.protocol.instruction.OFInstructionApplyActions;
+import org.openflow.protocol.instruction.OFInstructionGotoTable;
 
 public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		IOFMessageListener
@@ -133,6 +144,27 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		/*       balancer IP to the controller                               */
 		/*       (2) ARP packets to the controller, and                      */
 		/*       (3) all other packets to the next rule table in the switch  */
+		
+		
+
+		//for every LB inst., edit pkt info and send back to controller
+		for (LoadBalancerInstance LBInstance: this.instances.values()){
+			
+			//add the rule for client
+			addRule(sw, LBInstance);
+			//add the rule for ARP since we know the information
+			addARPRule(sw, LBInstance);
+			
+			
+		}
+		
+		//pkts should go to the level-3 routing table
+		OFMatch match = new OFMatch(); 
+		List<OFInstruction> listOFInstructions;
+		listOFInstructions = Arrays.asList((OFInstruction)new OFInstructionGotoTable().setTableId(l3RoutingApp.getTable()));
+		SwitchCommands.installRule(sw, this.table, (short) (SwitchCommands.DEFAULT_PRIORITY + 0),
+									match, listOFInstructions);
+		
 		
 		/*********************************************************************/
 	}
@@ -277,4 +309,55 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 	@Override
 	public boolean isCallbackOrderingPostreq(OFType type, String name) 
 	{ return false; }
+	
+	public void addRule(IOFSwitch sw, LoadBalancerInstance LBInstance){
+		OFActionOutput act;
+		List<OFAction> listOFActions;
+		OFInstructionApplyActions instruct;
+		OFMatch match;
+		List<OFInstruction> listOFInstructs;
+		
+		act = new OFActionOutput();
+		act.setPort(OFPort.OFPP_CONTROLLER);
+		listOFActions= new ArrayList<OFAction>();
+		listOFActions.add(act);
+		instruct = new OFInstructionApplyActions();
+		instruct.setActions(listOFActions);
+		
+		match= new OFMatch();
+		match.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
+		match.setNetworkDestination(OFMatch.ETH_TYPE_IPV4, LBInstance.getVirtualIP());
+		match.setNetworkProtocol(OFMatch.IP_PROTO_TCP);
+		listOFInstructs = Arrays.asList((OFInstruction)new OFInstructionApplyActions().setActions(listOFActions));
+		SwitchCommands.installRule(sw, this.table, (short) (SwitchCommands.DEFAULT_PRIORITY + 1),
+		match, listOFInstructs);	
+		
+	}
+	
+	public void addARPRule(IOFSwitch sw, LoadBalancerInstance LBInstance){
+		OFActionOutput act;
+		List<OFAction> listOFActions;
+		OFInstructionApplyActions instruct;
+		OFMatch match;
+		List<OFInstruction> listOFInstructions;
+		
+		act = new OFActionOutput();
+		act.setPort(OFPort.OFPP_CONTROLLER);
+		listOFActions = new ArrayList<OFAction>();
+		listOFActions.add(act);
+		instruct = new OFInstructionApplyActions();
+		instruct.setActions(listOFActions);
+		
+		match = new OFMatch();
+		match.setDataLayerType(OFMatch.ETH_TYPE_ARP);
+		match.setNetworkDestination(OFMatch.ETH_TYPE_ARP, LBInstance.getVirtualIP());
+		//set network prot?
+		
+		listOFInstructions = Arrays.asList((OFInstruction)new OFInstructionApplyActions().setActions(listOFActions));
+		SwitchCommands.installRule(sw, this.table, (short) (SwitchCommands.DEFAULT_PRIORITY + 1),
+		match, listOFInstructions);	
+		
+	}
+	
+	
 }
