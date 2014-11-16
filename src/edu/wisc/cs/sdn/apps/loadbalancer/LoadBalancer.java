@@ -69,6 +69,10 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
     
     // Set of virtual IPs and the load balancer instances they correspond with
     private Map<Integer,LoadBalancerInstance> instances;
+    
+
+    private static final int NON_ARP_RULE = 1;
+    private static final int ARP_RULE = 2;
 
     /**
      * Loads dependencies and initializes data structures.
@@ -143,17 +147,17 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		/*       (1) packets from new connections to each virtual load       */
 		/*       balancer IP to the controller                               */
 		/*       (2) ARP packets to the controller, and                      */
-		/*       (3) all other packets to the next rule table in the switch  */
+		/*       (3)  	all other packets to the next rule table in the switch  */
 		
 		
 
 		//for every LB inst., edit pkt info and send back to controller
 		for (LoadBalancerInstance LBInstance: this.instances.values()){
 			
-			//add the rule for client
-			addRule(sw, LBInstance);
-			//add the rule for ARP since we know the information
-			addARPRule(sw, LBInstance);
+			//add the rule (case 1) for client
+			addRule(sw, LBInstance, NON_ARP_RULE);
+			//add the rule for ARP (case 2) since we know the information
+			addRule(sw, LBInstance, ARP_RULE);
 			
 			
 		}
@@ -162,7 +166,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		OFMatch match = new OFMatch(); 
 		List<OFInstruction> listOFInstructions;
 		listOFInstructions = Arrays.asList((OFInstruction)new OFInstructionGotoTable().setTableId(l3RoutingApp.getTable()));
-		SwitchCommands.installRule(sw, this.table, (short) (SwitchCommands.DEFAULT_PRIORITY + 0),
+		SwitchCommands.installRule(sw, this.table, (short)(SwitchCommands.DEFAULT_PRIORITY),
 									match, listOFInstructions);
 		
 		
@@ -327,12 +331,18 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 	public boolean isCallbackOrderingPostreq(OFType type, String name) 
 	{ return false; }
 	
-	public void addRule(IOFSwitch sw, LoadBalancerInstance LBInstance){
+	
+	/**
+	 * adds rule to table taking in switch, the LB Instance, and an int for type
+	 * @type = 1: general routing rule (TCP, TDP, IPv4)
+	 * @type = 2: ARP routing rule
+	 */
+	public void addRule(IOFSwitch sw, LoadBalancerInstance LBInstance, int type){
 		OFActionOutput act;
 		List<OFAction> listOFActions;
 		OFInstructionApplyActions instruct;
 		OFMatch match;
-		List<OFInstruction> listOFInstructs;
+		List<OFInstruction> listOFInstructions;
 		
 		act = new OFActionOutput();
 		act.setPort(OFPort.OFPP_CONTROLLER);
@@ -340,18 +350,31 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		listOFActions.add(act);
 		instruct = new OFInstructionApplyActions();
 		instruct.setActions(listOFActions);
-		
 		match= new OFMatch();
-		match.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
-		match.setNetworkDestination(OFMatch.ETH_TYPE_IPV4, LBInstance.getVirtualIP());
-		match.setNetworkProtocol(OFMatch.IP_PROTO_TCP);
-		listOFInstructs = Arrays.asList((OFInstruction)new OFInstructionApplyActions().setActions(listOFActions));
-		SwitchCommands.installRule(sw, this.table, (short) (SwitchCommands.DEFAULT_PRIORITY + 1),
-		match, listOFInstructs);	
+
+		if (type == NON_ARP_RULE){
+			match.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
+			match.setNetworkDestination(OFMatch.ETH_TYPE_IPV4, LBInstance.getVirtualIP());
+			match.setNetworkProtocol(OFMatch.IP_PROTO_TCP);
+			listOFInstructions = Arrays.asList((OFInstruction)new OFInstructionApplyActions().setActions(listOFActions));
+			SwitchCommands.installRule(sw, this.table, (short)(SwitchCommands.DEFAULT_PRIORITY + 1),
+						match, listOFInstructions);
+		}
+		
+		if (type == ARP_RULE){
+			
+			match.setDataLayerType(OFMatch.ETH_TYPE_ARP);
+			match.setNetworkDestination(OFMatch.ETH_TYPE_ARP, LBInstance.getVirtualIP());
+			//set network prot?
+			
+			listOFInstructions = Arrays.asList((OFInstruction)new OFInstructionApplyActions().setActions(listOFActions));
+			SwitchCommands.installRule(sw, this.table, (short)(SwitchCommands.DEFAULT_PRIORITY + 1),
+			match, listOFInstructions);	
+		}
 		
 	}
 	
-	public void addARPRule(IOFSwitch sw, LoadBalancerInstance LBInstance){
+	/*public void addARPRule(IOFSwitch sw, LoadBalancerInstance LBInstance){
 		OFActionOutput act;
 		List<OFAction> listOFActions;
 		OFInstructionApplyActions instruct;
@@ -374,7 +397,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		SwitchCommands.installRule(sw, this.table, (short) (SwitchCommands.DEFAULT_PRIORITY + 1),
 		match, listOFInstructions);	
 		
-	}
+	}*/
 	
 	
 }
