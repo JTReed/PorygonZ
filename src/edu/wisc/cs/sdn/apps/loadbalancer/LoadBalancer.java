@@ -536,6 +536,9 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		
 		// update TCP header
 		TCPpkt.setFlags( (short) TCP_FLAG_RST );
+		TCPpkt.setSequence( TCPpkt.getAcknowledge() );
+		// "When a receiver advertises a window size of 0, the sender stops sending data and starts the persist timer."
+		TCPpkt.setWindowSize( (short) 0 );
 		TCPpkt.setChecksum( (short) 0 );
 		TCPpkt.serialize();
 		
@@ -562,19 +565,27 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 	
 	/**
 	 *     Install rules in every switch to:
-	 *     
-    		Notify the controller when a client initiates a TCP connection with a virtual IP—we cannot specify TCP flags in match criteria, so the SDN switch will notify the controller of each TCP packet sent to a virtual IP which did not match a connection-specific rule (described below)
-    		Notify the controller when a client issues an ARP request for the MAC address associated with a virtual IP
-    		Match all other packets against the rules in the next table in the switch (described below)
+    		- Notify the controller when a client initiates a TCP connection with a virtual IP—we 
+    		  cannot specify TCP flags in match criteria, so the SDN switch will notify the controller 
+    		  of each TCP packet sent to a virtual IP which did not match a connection-specific rule (described below)
+    		- Notify the controller when a client issues an ARP request for the MAC address associated with a virtual IP
+    		- Match all other packets against the rules in the next table in the switch (described below)
 
 			These rules should be installed when a switch joins the network.
 
     		Install connection-specific rules for each new connection to a virtual IP to:
+    		- Rewrite the destination IP and MAC address of TCP packets sent from a client to the virtual IP
+    		- Rewrite the source IP and MAC address of TCP packets sent from server to client
 
-    		Rewrite the destination IP and MAC address of TCP packets sent from a client to the virtual IP
-    		Rewrite the source IP and MAC address of TCP packets sent from server to client
-
-			Connection-specific rules should match packets on the basis of Ethernet type, source IP address, destination IP address, protocol, TCP source port, and TCP destination port. Connection-specific rules should take precedence over the rules that send TCP packets to the controller, otherwise every TCP packet would be sent to the controller. Therefore, these rules should have a higher priority than the rules installed when a switch joins the network.  Also, we want connection-specific rules to be removed when a TCP connection ends, so connection-specific rules should have an idle timeout of 20 seconds.
+			Connection-specific rules should match packets on the basis of Ethernet type, source IP address, 
+			 destination IP address, protocol, TCP source port, and TCP destination port. 
+			Connection-specific rules should take precedence over the rules that send TCP packets to the 
+			 controller, otherwise every TCP packet would be sent to the controller. Therefore, these 
+			 rules should have a higher priority than the rules installed when a switch joins the network.  
+			Also, we want connection-specific rules to be removed when a TCP connection ends, so 
+			 connection-specific rules should have an idle timeout of 20 seconds.
+			 
+			"we install the rule to override destination MAC and destination IP for all the incoming packets from that source."
 	 * 
 	 */
 	public void handleTCP(Ethernet ethPkt, TCP TCPpkt, OFPacketIn pktIn, IOFSwitch sw){
