@@ -52,6 +52,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 	public static final String MODULE_NAME = LoadBalancer.class.getSimpleName();
 	
 	private static final byte TCP_FLAG_SYN = 0x02;
+	private static final byte TCP_FLAG_RST = 0x04;
 	
 	private static final short IDLE_TIMEOUT = 20;
 	
@@ -264,7 +265,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 					if (TCPpkt.getFlags() != TCP_FLAG_SYN){
 
 						//TODO: handle TCPReset method
-						handleTCPReset(ethPkt, TCPpkt, pktIn, sw);
+						handleTCPReset(ethPkt, IPpkt, TCPpkt, pktIn, sw);
 						
 					}
 					
@@ -272,8 +273,10 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 						
 						//TODO: handleTCP method - this will add a TON of rules, ZOMG
 						handleTCP(ethPkt, TCPpkt, pktIn, sw);
-					}
-					
+					}					
+				}
+				else {
+					System.out.println( "IPv4, but not TCP ");
 				}
 
 				System.out.println("Found TYPE_IPv4");
@@ -523,15 +526,38 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 	/**
 	 * Construct and send a TCP reset packet if the controller receives a TCP packet that is not a TCP SYN
 	 */
-	public void handleTCPReset(Ethernet ethPkt, TCP TCPpkt, OFPacketIn pktIn, IOFSwitch sw){
+	public void handleTCPReset(Ethernet ethPkt, IPv4 ipPkt, TCP TCPpkt, OFPacketIn pktIn, IOFSwitch sw){
 		
 		//TODO:  
-		//TCP requires flags be set? 1. set flag?
+		//TCP requires flags be set? 1. set flag to TCP_FLAG_RST
 		//2. set target/sender protocol and hardware addresses
 		//3. set ethernet pkt fields
 		//4. send
-		// TCP_FLAG_RESET
 		
+		// update TCP header
+		TCPpkt.setFlags( (short) TCP_FLAG_RST );
+		TCPpkt.setChecksum( (short) 0 );
+		TCPpkt.serialize();
+		
+		// update IP header
+		ipPkt.setPayload( TCPpkt );
+		int targetIPAddress = ipPkt.getSourceAddress();
+		int sourceIPAddress = ipPkt.getDestinationAddress();
+		ipPkt.setDestinationAddress( targetIPAddress );
+		ipPkt.setSourceAddress( sourceIPAddress );
+		ipPkt.setChecksum( (short) 0 );
+		ipPkt.serialize();
+		
+		// update Ethernet header
+		ethPkt.setPayload( ipPkt );
+		byte[] targetMACAddress = ethPkt.getSourceMACAddress();
+		byte[] sourceMACAddress = ethPkt.getDestinationMACAddress();
+		ethPkt.setDestinationMACAddress( targetMACAddress );
+		ethPkt.setSourceMACAddress( sourceMACAddress );
+		
+		// Send that baby
+		short outPort = (short)pktIn.getInPort();
+		SwitchCommands.sendPacket( sw, outPort, ethPkt );
 	}
 	
 	/**
