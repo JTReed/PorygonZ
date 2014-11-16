@@ -197,6 +197,20 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		/*       for all other TCP packets sent to a virtual IP, send a TCP  */
 		/*       reset; ignore all other packets                             */
 		
+		//Case: ARP request:
+		short type = ethPkt.getEtherType();
+		switch(type){
+			case Ethernet.TYPE_ARP:
+				//cases: ARP.OP_REQUEST(?) 
+				System.out.println("Found TYPE_ARP");
+			case Ethernet.TYPE_IPv4:
+				//PROTOCOL_TCP (!SYN, then TCP reset?)
+				//SYN packet-init conenction
+				System.out.println("Found TYPE_IPv4");
+			default: System.out.println("Frick if I know what happened");
+				
+		}
+		
 		/*********************************************************************/
 		
 		return Command.CONTINUE;
