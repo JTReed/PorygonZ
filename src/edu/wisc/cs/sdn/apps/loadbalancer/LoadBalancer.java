@@ -35,7 +35,9 @@ import net.floodlightcontroller.core.module.IFloodlightService;
 import net.floodlightcontroller.devicemanager.IDevice;
 import net.floodlightcontroller.devicemanager.IDeviceService;
 import net.floodlightcontroller.devicemanager.internal.DeviceManagerImpl;
+import net.floodlightcontroller.packet.ARP;
 import net.floodlightcontroller.packet.Ethernet;
+import net.floodlightcontroller.packet.IPv4;
 import net.floodlightcontroller.util.MACAddress;
 
 import org.openflow.protocol.action.OFAction;
@@ -207,9 +209,78 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 			case Ethernet.TYPE_ARP:
 				//cases: ARP.OP_REQUEST(?) 
 				System.out.println("Found TYPE_ARP");
+				ARP ARPpkt = (ARP)ethPkt.getPayload();
+				
+				//TODO: Begin the madness....
+				
+				// It's a trap! I mean, request! Yay, client!
+				//we're going to construct ARP replies, but need to get information first
+				if (ARPpkt.getOpCode() == ARP.OP_REQUEST) {
+					
+					//need LBInstance object to get LB instance from MAP<instances, int vitualIP> so we can get Virtual MAC for ARPpkt
+					LoadBalancerInstance LBInstance;
+					
+					//but we should probs:
+						//get infor to send reply: note: SwitchCommands.java holds methods to send pkt
+					
+							//1. need virtual IP of intended dest
+								//get target address: 
+								byte[] targetAddress = ARPpkt.getTargetProtocolAddress();
+								//cast byte array as IPv4 address: 
+								int virtualIP = IPv4.toIPv4Address(targetAddress);
+								
+							//2. MAP of <instances, virtIP>: use virtual IP to get the LB instance associated, used to get VirtMAC
+								LBInstance = instances.get(virtualIP);
+								
+							//3. we need to swap sender and dest fields to send back to requester - so get information needed
+								//get client's protocol address - will be ARPreply's target protocol add
+								byte[] targetProtocolAddress = ARPpkt.getSenderProtocolAddress();
+								//get client's hardware address - will be ARPreply's target Hrdwr Add
+								byte[] targetHardwareAddress = ARPpkt.getSenderHardwareAddress();
+								//use virtual IP to get it's IPv4 address - will be sender's Protocol Address
+								byte[] senderProtocolAddress = IPv4.toIPv4AddressBytes(virtualIP);
+								//get virtual MAC from LB instance we found from VIRTual IP in (2) - will be sender's Hardware Add
+								byte[] senderHardwareAddress = LBInstance.getVirtualMAC();
+								//get eth pkt's curr source MAC address - will be destMACAddress for eth pkt
+								byte[] destMACAddress = ethPkt.getSourceMACAddress();
+								
+							//4. we need to swap, so set pkt's fields from (3):
+								ARPpkt.setOpCode(ARP.OP_REPLY);
+								ARPpkt.setTargetProtocolAddress(targetProtocolAddress);
+								ARPpkt.setTargetHardwareAddress(targetHardwareAddress);
+								ARPpkt.setSenderProtocolAddress(senderProtocolAddress);
+								ARPpkt.setSenderHardwareAddress(senderHardwareAddress);
+								
+							//5. set ethernet pkt fields so it routes to correct dest (source and MAC address need to be changed)
+								ethPkt.setPayload(ARPpkt);
+								ethPkt.setDestinationMACAddress( destMACAddress );
+								//use same senderHardwareAddress? I can't imagine not...
+								ethPkt.setSourceMACAddress( senderHardwareAddress );
+								
+							//6. done with building ARPpkt, so send it off!
+								//outSw is sw, outPort is pkt's inPort (what the request to control is called), ethpkt is ethpkt
+								short outPort = (short)pktIn.getInPort();
+								//SwitchCommands.sendPacket(outSw, outPort, eth)
+								SwitchCommands.sendPacket( sw, outPort, ethPkt );
+
+				}
+				//it's a reply or something else otherwise! Meaning it should have come from server heading to client! Supposedly..
+				//				
+				else if (ethPkt.getEtherType() == Ethernet.TYPE_IPv4){
+					IPv4 IPpkt = null;
+					IPpkt = (IPv4)ethPkt.getPayload();
+					
+					//checkout IPv4.java!
+					
+				}
+				
+				
+				
 			case Ethernet.TYPE_IPv4:
 				//PROTOCOL_TCP (!SYN, then TCP reset?)
 				//SYN packet-init conenction
+					//SYN Packet Reply
+					//SYN Packet Send
 				System.out.println("Found TYPE_IPv4");
 			default: System.out.println("Frick if I know what happened");
 				
