@@ -475,47 +475,47 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		LoadBalancerInstance LBInstance;
 		
 		//but we should probs:
-			//get infor to send reply: note: SwitchCommands.java holds methods to send pkt
+		//get infor to send reply: note: SwitchCommands.java holds methods to send pkt
+	
+		//1. need virtual IP of intended dest
+		//get target address: 
+		byte[] targetAddress = ARPpkt.getTargetProtocolAddress();
+		//cast byte array as IPv4 address: 
+		int virtualIP = IPv4.toIPv4Address(targetAddress);
+			
+		//2. MAP of <instances, virtIP>: use virtual IP to get the LB instance associated, used to get VirtMAC
+		LBInstance = instances.get(virtualIP);
+			
+		//3. we need to swap sender and dest fields to send back to requester - so get information needed
+		//TODO: add these to the set methods below, currently seperated for understanding
+		//get client's protocol address - will be ARPreply's target protocol add
+		byte[] targetProtocolAddress = ARPpkt.getSenderProtocolAddress();
+		//get client's hardware address - will be ARPreply's target Hrdwr Add
+		byte[] targetHardwareAddress = ARPpkt.getSenderHardwareAddress();
+		//use virtual IP to get it's IPv4 address - will be sender's Protocol Address
+		byte[] senderProtocolAddress = IPv4.toIPv4AddressBytes(virtualIP);
+		//get virtual MAC from LB instance we found from VIRTual IP in (2) - will be sender's Hardware Add
+		byte[] senderHardwareAddress = LBInstance.getVirtualMAC();
+		//get eth pkt's curr source MAC address - will be destMACAddress for eth pkt
+		byte[] destMACAddress = ethPkt.getSourceMACAddress();
 		
-				//1. need virtual IP of intended dest
-				//get target address: 
-				byte[] targetAddress = ARPpkt.getTargetProtocolAddress();
-				//cast byte array as IPv4 address: 
-				int virtualIP = IPv4.toIPv4Address(targetAddress);
-					
-				//2. MAP of <instances, virtIP>: use virtual IP to get the LB instance associated, used to get VirtMAC
-				LBInstance = instances.get(virtualIP);
-					
-				//3. we need to swap sender and dest fields to send back to requester - so get information needed
-				//TODO: add these to the set methods below, currently seperated for understanding
-				//get client's protocol address - will be ARPreply's target protocol add
-				byte[] targetProtocolAddress = ARPpkt.getSenderProtocolAddress();
-				//get client's hardware address - will be ARPreply's target Hrdwr Add
-				byte[] targetHardwareAddress = ARPpkt.getSenderHardwareAddress();
-				//use virtual IP to get it's IPv4 address - will be sender's Protocol Address
-				byte[] senderProtocolAddress = IPv4.toIPv4AddressBytes(virtualIP);
-				//get virtual MAC from LB instance we found from VIRTual IP in (2) - will be sender's Hardware Add
-				byte[] senderHardwareAddress = LBInstance.getVirtualMAC();
-				//get eth pkt's curr source MAC address - will be destMACAddress for eth pkt
-				byte[] destMACAddress = ethPkt.getSourceMACAddress();
-				
-				//4. we need to swap, so set pkt's fields from (3):
-				ARPpkt.setOpCode(ARP.OP_REPLY);
-				ARPpkt.setTargetProtocolAddress(targetProtocolAddress);
-				ARPpkt.setTargetHardwareAddress(targetHardwareAddress);
-				ARPpkt.setSenderProtocolAddress(senderProtocolAddress);
-				ARPpkt.setSenderHardwareAddress(senderHardwareAddress);
-					
-				//5. set ethernet pkt fields so it routes to correct dest (source and MAC address need to be changed)
-				ethPkt.setPayload(ARPpkt);
-				ethPkt.setDestinationMACAddress( destMACAddress );
-				//use same senderHardwareAddress? I can't imagine not...
-				ethPkt.setSourceMACAddress( senderHardwareAddress );
-					
-				//6. done with building ARPpkt, so send it off!
-				//outSw is sw, outPort is pkt's inPort (what the request to control is called), ethpkt is ethpkt
-				short outPort = (short)pktIn.getInPort();
-				SwitchCommands.sendPacket( sw, outPort, ethPkt );
+		//4. we need to swap, so set pkt's fields from (3):
+		ARPpkt.setOpCode(ARP.OP_REPLY);
+		ARPpkt.setTargetProtocolAddress(targetProtocolAddress);
+		ARPpkt.setTargetHardwareAddress(targetHardwareAddress);
+		ARPpkt.setSenderProtocolAddress(senderProtocolAddress);
+		ARPpkt.setSenderHardwareAddress(senderHardwareAddress);
+			
+		//5. set ethernet pkt fields so it routes to correct dest (source and MAC address need to be changed)
+		ethPkt.setPayload(ARPpkt);
+		ethPkt.setDestinationMACAddress( destMACAddress );
+		//use same senderHardwareAddress? I can't imagine not...
+		ethPkt.setSourceMACAddress( senderHardwareAddress );
+			
+		//6. done with building ARPpkt, so send it off!
+		//outSw is sw, outPort is pkt's inPort (what the request to control is called), ethpkt is ethpkt
+		short outPort = (short)pktIn.getInPort();
+		SwitchCommands.sendPacket( sw, outPort, ethPkt );
 		
 		
 	}
@@ -530,6 +530,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		//2. set target/sender protocol and hardware addresses
 		//3. set ethernet pkt fields
 		//4. send
+		// TCP_FLAG_RESET
 		
 	}
 	
