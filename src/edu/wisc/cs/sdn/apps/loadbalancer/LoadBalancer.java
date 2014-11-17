@@ -220,7 +220,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 			 */
 			case Ethernet.TYPE_ARP:
 				//cases: ARP.OP_REQUEST(?) 
-				System.out.println("Found TYPE_ARP");
+				//System.out.println("Found TYPE_ARP");
 				ARP ARPpkt = (ARP)ethPkt.getPayload();
 				
 				//It's a trap!
@@ -244,7 +244,7 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 				else if (ARPpkt.getOpCode() == ARP.OP_REPLY){
 					//this shouldn't happen - WE construct replies...
 					//TODO: remove - this is for testing purposes
-					System.out.println( "Error: Received ARP Reply" );
+					//System.out.println( "Error: Received ARP Reply" );
 				}
 				//END ARP CASE
 				break;
@@ -282,13 +282,13 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 				}
 				
 				else {
-					System.out.println( "IPv4, but not TCP ");
+					//System.out.println( "IPv4, but not TCP ");
 				}
 
-				System.out.println("Found TYPE_IPv4");
+				//System.out.println("Found TYPE_IPv4");
 				break;
 				
-			default: System.out.println("Error: Received packet neither ARP nor IPv4");
+			default: //System.out.println("Error: Received packet neither ARP nor IPv4");
 				
 		}
 		
@@ -634,10 +634,10 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		//TODO: seperate into different methods?
 		//3.a) set up the TCPpkt source/desk addresses
 		//set the pkt type
-		short TCPTransportDestinationAddress = TCPpkt.getDestinationPort();
-		short TCPTransportSourceAddress = TCPpkt.getSourcePort();
+		short TCPTransportDestinationPort = TCPpkt.getDestinationPort();
+		short TCPTransportSourcePort = TCPpkt.getSourcePort();
 		matchCriteria.setNetworkProtocol(OFMatch.IP_PROTO_TCP);
-		matchCriteria.setTransportDestination(OFMatch.IP_PROTO_TCP, TCPTransportDestinationPort;
+		matchCriteria.setTransportDestination(OFMatch.IP_PROTO_TCP, TCPTransportDestinationPort);
 		matchCriteria.setTransportSource(OFMatch.IP_PROTO_TCP, TCPTransportSourcePort);
 		
 		//4. change the packets Action fields when it is send from client using the virutal IP to resolve
