@@ -247,7 +247,7 @@ public class L3Routing implements IFloodlightModule, IOFSwitchListener,
 			}
 		}
 		
-		removeAllRules();
+		//removeAllRules();
 		bellmanFord();
 	}
 

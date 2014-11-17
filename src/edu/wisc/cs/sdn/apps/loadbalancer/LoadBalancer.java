@@ -621,6 +621,15 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		
 		//3. set up the match criteria like before in L3routing - we need to set rules using them
 		OFMatch matchCriteria = new OFMatch();
+
+		//TODO: seperate into different methods?
+		//3.b) set up IPpkt source/dest addresses
+		//set the pkt type
+		int IPNetworkSourceAddress = IPpkt.getSourceAddress();
+		
+		matchCriteria.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
+		matchCriteria.setNetworkDestination(OFMatch.ETH_TYPE_IPV4, virtualIP);
+		matchCriteria.setNetworkSource(OFMatch.ETH_TYPE_IPV4, IPNetworkSourceAddress);
 		
 		//TODO: seperate into different methods?
 		//3.a) set up the TCPpkt source/desk addresses
@@ -628,17 +637,8 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		short TCPTransportDestinationAddress = TCPpkt.getDestinationPort();
 		short TCPTransportSourceAddress = TCPpkt.getSourcePort();
 		matchCriteria.setNetworkProtocol(OFMatch.IP_PROTO_TCP);
-		matchCriteria.setTransportDestination(OFMatch.IP_PROTO_TCP, TCPTransportDestinationAddress);
-		matchCriteria.setTransportSource(OFMatch.IP_PROTO_TCP, TCPTransportSourceAddress);
-
-		//TODO: seperate into different methods?
-		//3.b) set up IPpkt source/dest addresses
-		//set the pkt type
-		short IPNetworkSourceAddress = (short)IPpkt.getSourceAddress();
-		
-		matchCriteria.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
-		matchCriteria.setNetworkDestination(OFMatch.ETH_TYPE_IPV4, virtualIP);
-		matchCriteria.setNetworkSource(OFMatch.ETH_TYPE_IPV4, IPNetworkSourceAddress);
+		matchCriteria.setTransportDestination(OFMatch.IP_PROTO_TCP, TCPTransportDestinationPort;
+		matchCriteria.setTransportSource(OFMatch.IP_PROTO_TCP, TCPTransportSourcePort);
 		
 		//4. change the packets Action fields when it is send from client using the virutal IP to resolve
 		//setting fields for IPv4
@@ -657,47 +657,77 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 
 		//6. install rules?
 		List<OFInstruction> listOFInstructions = Arrays.asList((OFInstruction)
-				new	OFInstructionApplyActions().setActions(actionList),
+				new OFInstructionApplyActions().setActions(actionList),
 				new OFInstructionGotoTable().setTableId(l3RoutingApp.getTable()));
 		
-		SwitchCommands.installRule(sw, table, (short)(SwitchCommands.DEFAULT_PRIORITY + 2),
+		SwitchCommands.installRule(sw, this.table, (short)(SwitchCommands.DEFAULT_PRIORITY + 2),
 		matchCriteria, listOFInstructions, (short)0, IDLE_TIMEOUT);
+
+		// TRY SOMETHING NEW
+		matchCriteria = new OFMatch();
+
+		matchCriteria.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
+		matchCriteria.setNetworkDestination(OFMatch.ETH_TYPE_IPV4, virtualIP);
+		matchCriteria.setNetworkSource(OFMatch.ETH_TYPE_IPV4, hostIP);
+		matchCriteria.setNetworkProtocol(OFMatch.IP_PROTO_TCP);
+
+		//setting fields for IPv4
+		destinationIPAddress = new OFActionSetField(OFOXMFieldType.IPV4_DST, IPpkt.getSourceAddress());
+		sourceIPAddress = new OFActionSetField(OFOXMFieldType.IPV4_SRC, virtualIP);
+		//setting fields for ETH
+		destinationMACAddress = new OFActionSetField(OFOXMFieldType.ETH_DST, ethPkt.getSourceMACAddress());
+		sourceMACAddress = new OFActionSetField(OFOXMFieldType.ETH_SRC, virtualMAC);
+
+		actionList = new ArrayList<OFAction>();
+		actionList.add(destinationIPAddress);
+		actionList.add(destinationMACAddress);
+		actionList.add(sourceIPAddress);
+		actionList.add(sourceMACAddress);
+
+		listOFInstructions = Arrays.asList((OFInstruction)
+				new OFInstructionApplyActions().setActions(actionList),
+				new OFInstructionGotoTable().setTableId(l3RoutingApp.getTable()));
+		
+		SwitchCommands.installRule(sw, this.table, (short)(SwitchCommands.DEFAULT_PRIORITY + 2),
+		matchCriteria, listOFInstructions, (short)0, IDLE_TIMEOUT);
+		
+		
 				
 		//7. loop through every switch and do stuff?
 				
-				for( IOFSwitch currSwitch : floodlightProv.getAllSwitchMap().values() ) {
-					
-					matchCriteria = new OFMatch();
+		/*for( IOFSwitch currSwitch : floodlightProv.getAllSwitchMap().values() ) {
+			
+			matchCriteria = new OFMatch();
 
-					matchCriteria.setNetworkProtocol( OFMatch.IP_PROTO_TCP );
-					matchCriteria.setTransportDestination( OFMatch.IP_PROTO_TCP, TCPpkt.getSourcePort() );
-					matchCriteria.setTransportSource( OFMatch.IP_PROTO_TCP, TCPpkt.getDestinationPort() );
+			matchCriteria.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
+			matchCriteria.setNetworkDestination(OFMatch.ETH_TYPE_IPV4, virtualIP);
+			matchCriteria.setNetworkSource(OFMatch.ETH_TYPE_IPV4, hostIP);
 
-					matchCriteria.setDataLayerType(OFMatch.ETH_TYPE_IPV4);
-					matchCriteria.setNetworkDestination(OFMatch.ETH_TYPE_IPV4, virtualIP);
-					matchCriteria.setNetworkSource(OFMatch.ETH_TYPE_IPV4, hostIP);
-					
-					//setting fields for IPv4
-					destinationIPAddress = new OFActionSetField(OFOXMFieldType.IPV4_DST, IPpkt.getSourceAddress() );
-					sourceIPAddress = new OFActionSetField(OFOXMFieldType.IPV4_SRC, LBInstance.getVirtualIP() );
-					// Set Ethernet Fields
-					destinationMACAddress = new OFActionSetField(OFOXMFieldType.ETH_DST, ethPkt.getSourceMACAddress() );
-					sourceMACAddress = new OFActionSetField(OFOXMFieldType.ETH_SRC, LBInstance.getVirtualMAC() );
-					
-					actionList = new ArrayList<OFAction>();
-					actionList.add(destinationMACAddress);
-					actionList.add(destinationIPAddress);
-					actionList.add(sourceMACAddress);
-					actionList.add(sourceIPAddress);
-					
-					listOFInstructions = Arrays.asList( (OFInstruction)
-							new OFInstructionApplyActions().setActions( actionList ),
-							new OFInstructionGotoTable().setTableId( l3RoutingApp.getTable() ) );
-					
-					SwitchCommands.installRule( currSwitch, table, (short)(SwitchCommands.DEFAULT_PRIORITY + 2),
-							matchCriteria, listOFInstructions, (short)0, IDLE_TIMEOUT );
+			matchCriteria.setNetworkProtocol( OFMatch.IP_PROTO_TCP );
+			matchCriteria.setTransportDestination( OFMatch.IP_PROTO_TCP, TCPpkt.getSourcePort() );
+			matchCriteria.setTransportSource( OFMatch.IP_PROTO_TCP, TCPpkt.getDestinationPort() );
+			
+			//setting fields for IPv4
+			destinationIPAddress = new OFActionSetField(OFOXMFieldType.IPV4_DST, virtualIP );
+			sourceIPAddress = new OFActionSetField(OFOXMFieldType.IPV4_SRC, IPpkt.getSourceAddress() );
+			// Set Ethernet Fields
+			destinationMACAddress = new OFActionSetField(OFOXMFieldType.ETH_DST, virtualMAC );
+			sourceMACAddress = new OFActionSetField(OFOXMFieldType.ETH_SRC, ethPkt.getDestinationMACAddress() );
+			
+			actionList = new ArrayList<OFAction>();
+			actionList.add(destinationMACAddress);
+			actionList.add(destinationIPAddress);
+			actionList.add(sourceMACAddress);
+			actionList.add(sourceIPAddress);
+			
+			listOFInstructions = Arrays.asList( (OFInstruction)
+					new OFInstructionApplyActions().setActions( actionList ),
+					new OFInstructionGotoTable().setTableId( l3RoutingApp.getTable() ) );
+			
+			SwitchCommands.installRule( currSwitch, this.table, (short)(SwitchCommands.DEFAULT_PRIORITY + 2),
+					matchCriteria, listOFInstructions, (short)0, IDLE_TIMEOUT );
 
-				}
+		}*/
 	}
 	
 		
