@@ -548,6 +548,8 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		LBInstance = instances.get( virtualIP );
 		
 		// update TCP header
+		TCPpkt.setSourcePort(TCPpkt.getDestinationPort());
+		TCPpkt.setDestinationPort(TCPpkt.getSourcePort());
 		TCPpkt.setFlags( (short)TCP_FLAG_RST );
 		TCPpkt.setSequence( TCPpkt.getAcknowledge() );
 		// "When a receiver advertises a window size of 0, the sender stops sending data and starts the persist timer."
@@ -567,9 +569,9 @@ public class LoadBalancer implements IFloodlightModule, IOFSwitchListener,
 		// update Ethernet header
 		ethPkt.setPayload( ipPkt );
 		byte[] targetMACAddress = ethPkt.getSourceMACAddress();
-		byte[] sourceMACAddress = LBInstance.getVirtualMAC();
-		ethPkt.setDestinationMACAddress( targetMACAddress );
-		ethPkt.setSourceMACAddress( sourceMACAddress );
+		byte[] sourceMACAddress = ethPkt.getDestinationMACAddress();
+		ethPkt.setDestinationMACAddress( targetMACAddress ); 
+		ethPkt.setSourceMACAddress( sourceMACAddress );  
 		
 		// Send that baby
 		short outPort = (short)pktIn.getInPort();
